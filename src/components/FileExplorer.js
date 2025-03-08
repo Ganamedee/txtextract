@@ -7,6 +7,7 @@ function FileExplorer() {
   const [includeNodeModules, setIncludeNodeModules] = useState(false);
   const [includePackageLock, setIncludePackageLock] = useState(false);
   const [includeFavicon, setIncludeFavicon] = useState(false);
+  const [includeImgFiles, setIncludeImgFiles] = useState(false); // New state for image files
   const [loading, setLoading] = useState(false);
   const [processedFiles, setProcessedFiles] = useState(0);
   const [totalFiles, setTotalFiles] = useState(0);
@@ -32,10 +33,12 @@ function FileExplorer() {
 
       // Skip excluded files
       if (handle.kind === "file") {
+        const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(name);
         if (
           (!options.includePackageLock && name === "package-lock.json") ||
           (!options.includeFavicon &&
-            (name === "favicon.ico" || name.startsWith("favicon.")))
+            (name === "favicon.ico" || name.startsWith("favicon."))) ||
+          (!options.includeImgFiles && isImageFile)
         ) {
           continue;
         }
@@ -80,6 +83,7 @@ function FileExplorer() {
         includeNodeModules,
         includePackageLock,
         includeFavicon,
+        includeImgFiles, // Add new option
       };
       const totalFilesCount = await countFiles(dirHandle, options);
       setTotalFiles(totalFilesCount);
@@ -115,10 +119,12 @@ function FileExplorer() {
 
       // Skip excluded files
       if (handle.kind === "file") {
+        const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(name);
         if (
           (!options.includePackageLock && name === "package-lock.json") ||
           (!options.includeFavicon &&
-            (name === "favicon.ico" || name.startsWith("favicon.")))
+            (name === "favicon.ico" || name.startsWith("favicon."))) ||
+          (!options.includeImgFiles && isImageFile)
         ) {
           continue;
         }
@@ -238,6 +244,16 @@ function FileExplorer() {
               disabled={loading}
             />
             Include favicon files
+          </label>
+
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={includeImgFiles}
+              onChange={() => setIncludeImgFiles(!includeImgFiles)}
+              disabled={loading}
+            />
+            Include image files (.jpg, .png, etc.)
           </label>
         </div>
 
