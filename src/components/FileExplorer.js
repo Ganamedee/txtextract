@@ -10,13 +10,15 @@ function FileExplorer() {
   const [includePackageLock, setIncludePackageLock] = useState(false);
   const [includeFavicon, setIncludeFavicon] = useState(false);
   const [includeImgFiles, setIncludeImgFiles] = useState(false);
-  const [showStatistics, setShowStatistics] = useState(false); // New state for statistics toggle
+  const [showStatistics, setShowStatistics] = useState(false);
   const [loading, setLoading] = useState(false);
   const [processedFiles, setProcessedFiles] = useState(0);
   const [totalFiles, setTotalFiles] = useState(0);
   const [error, setError] = useState("");
   const [fileSizeThreshold, setFileSizeThreshold] = useState(1); // Default: 1MB
   const [exportFormat, setExportFormat] = useState("txt");
+  const [folderName, setFolderName] = useState("");
+  const [showAbout, setShowAbout] = useState(false);
   const [fileStats, setFileStats] = useState({
     totalFiles: 0,
     totalSize: 0,
@@ -249,6 +251,16 @@ function FileExplorer() {
     }
   };
 
+  // Helper function to escape HTML
+  const escapeHtml = (unsafe) => {
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  };
+
   const handleFolderSelect = async () => {
     // Reset states
     setFileStructure("");
@@ -269,6 +281,10 @@ function FileExplorer() {
 
       // Request access to a directory
       const dirHandle = await window.showDirectoryPicker();
+
+      // Save folder name for download
+      setFolderName(dirHandle.name);
+
       setLoading(true);
 
       // Count total files for progress tracking
@@ -300,7 +316,7 @@ function FileExplorer() {
     }
   };
 
-  // Updated processDirectory function to include the tree view and syntax highlighting
+  // Updated processDirectory function to include the tree view and escape HTML
   const processDirectory = async (dirHandle, path, options) => {
     let output = "";
 
@@ -366,9 +382,12 @@ function FileExplorer() {
             try {
               const text = await file.text();
 
+              // Escape HTML in file content to prevent rendering
+              const escapedText = escapeHtml(text);
+
               // Add file path as a comment
               output += `\n// File: ${newPath}\n`;
-              output += `${text}\n`;
+              output += `${escapedText}\n`;
             } catch (error) {
               output += `\n// File: ${newPath} (error reading content: ${error.message})\n`;
             }
@@ -461,7 +480,7 @@ function FileExplorer() {
     outputRef.current.scrollTop = scrollPosition - 100; // Scroll with some context
   };
 
-  // Function to highlight search results
+  // Function to highlight search results safely (maintaining HTML escaping)
   const highlightSearchResults = (text, query, results, currentIndex) => {
     if (!query || results.length === 0) return text;
 
@@ -517,23 +536,30 @@ function FileExplorer() {
     }
   };
 
-  // Text export
+  // Text export with folder name
   const exportAsText = () => {
+    const filename = folderName
+      ? `${folderName}_structure.txt`
+      : "file_structure.txt";
     const blob = new Blob([fileStructure], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "file_structure.txt";
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  // Markdown export
+  // Markdown export with folder name
   const exportAsMarkdown = () => {
+    const filename = folderName
+      ? `${folderName}_structure.md`
+      : "file_structure.md";
+
     // Convert the output to markdown format
-    let mdContent = "# File Structure\n\n";
+    let mdContent = `# ${folderName || "File"} Structure\n\n`;
 
     // Get the tree structure part
     const treeStructureMatch = fileStructure.match(
@@ -598,15 +624,19 @@ function FileExplorer() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "file_structure.md";
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  // HTML export
+  // HTML export with folder name
   const exportAsHtml = () => {
+    const filename = folderName
+      ? `${folderName}_structure.html`
+      : "file_structure.html";
+
     // Create a styled HTML document
     let htmlContent = `
 <!DOCTYPE html>
@@ -614,7 +644,7 @@ function FileExplorer() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>File Structure</title>
+  <title>${folderName || "File"} Structure</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
   <style>
@@ -686,7 +716,7 @@ function FileExplorer() {
   </style>
 </head>
 <body>
-  <h1>File Structure</h1>
+  <h1>${folderName || "File"} Structure</h1>
 `;
 
     // Get the tree structure part
@@ -767,9 +797,7 @@ function FileExplorer() {
         htmlContent += `
   <div class="file-container">
     <h3>${path}</h3>
-    <pre><code class="language-${language}">${content
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")}</code></pre>
+    <pre><code class="language-${language}">${content}</code></pre>
   </div>
 `;
       } else if (type === "Directory") {
@@ -797,17 +825,22 @@ function FileExplorer() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "file_structure.html";
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  // JSON export
+  // JSON export with folder name
   const exportAsJson = () => {
+    const filename = folderName
+      ? `${folderName}_structure.json`
+      : "file_structure.json";
+
     // Parse the file structure into a JSON object
     const jsonStructure = {
+      name: folderName || "Unknown Folder",
       tree: {},
       files: {},
       stats: fileStats,
@@ -870,7 +903,7 @@ function FileExplorer() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "file_structure.json";
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -918,75 +951,121 @@ function FileExplorer() {
   return (
     <div className="file-explorer">
       <div className="control-panel">
-        <button
-          className="select-button"
-          onClick={handleFolderSelect}
-          disabled={loading}
-        >
-          {loading ? "Processing..." : "Select Folder"}
-        </button>
+        <div className="panel-header">
+          <button
+            className="select-button"
+            onClick={handleFolderSelect}
+            disabled={loading}
+          >
+            {loading ? "Processing..." : "Select Folder"}
+          </button>
 
-        <div className="checkbox-container">
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={includeGit}
-              onChange={() => setIncludeGit(!includeGit)}
-              disabled={loading}
-            />
-            Include .git folders
-          </label>
+          <button
+            className="about-button"
+            onClick={() => setShowAbout(!showAbout)}
+          >
+            About
+          </button>
+        </div>
 
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={includeNodeModules}
-              onChange={() => setIncludeNodeModules(!includeNodeModules)}
-              disabled={loading}
-            />
-            Include node_modules
-          </label>
+        {showAbout && (
+          <div className="about-panel">
+            <h3>About TxtExtract</h3>
+            <p>
+              TxtExtract helps you extract and document your project's file
+              structure and contents. It runs entirely in your browser - no data
+              is sent to any server.
+            </p>
+            <p>
+              <strong>Perfect for AI tools:</strong> TxtExtract eliminates the
+              need to manually attach multiple files when working with AI
+              assistants. Simply extract your project structure, copy the
+              result, and paste it into your AI conversation for context.
+            </p>
+            <p>
+              <strong>Features:</strong>
+            </p>
+            <ul>
+              <li>Extract complete file structure and contents</li>
+              <li>Control which files and folders to include</li>
+              <li>Download in multiple formats (TXT, MD, HTML, JSON)</li>
+              <li>Search across all files</li>
+              <li>View file statistics and breakdowns</li>
+            </ul>
+            <p>
+              <strong>Feedback:</strong> If you have suggestions or encounter
+              issues, please open an issue on our{" "}
+              <a
+                href="https://github.com/yourusername/txtextract"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                GitHub page
+              </a>
+              .
+            </p>
+            <button
+              className="close-button"
+              onClick={() => setShowAbout(false)}
+            >
+              Close
+            </button>
+          </div>
+        )}
 
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={includePackageLock}
-              onChange={() => setIncludePackageLock(!includePackageLock)}
-              disabled={loading}
-            />
-            Include package-lock.json
-          </label>
-
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={includeFavicon}
-              onChange={() => setIncludeFavicon(!includeFavicon)}
-              disabled={loading}
-            />
-            Include favicon files
-          </label>
-
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={includeImgFiles}
-              onChange={() => setIncludeImgFiles(!includeImgFiles)}
-              disabled={loading}
-            />
-            Include image files (.jpg, .png, etc.)
-          </label>
-
-          {fileStats.totalFiles > 0 && (
+        <div className="options-section">
+          <h4>Inclusion Options</h4>
+          <div className="checkbox-container">
             <label className="checkbox">
               <input
                 type="checkbox"
-                checked={showStatistics}
-                onChange={() => setShowStatistics(!showStatistics)}
+                checked={includeGit}
+                onChange={() => setIncludeGit(!includeGit)}
+                disabled={loading}
               />
-              Show file statistics
+              Include .git folders
             </label>
-          )}
+
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={includeNodeModules}
+                onChange={() => setIncludeNodeModules(!includeNodeModules)}
+                disabled={loading}
+              />
+              Include node_modules
+            </label>
+
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={includePackageLock}
+                onChange={() => setIncludePackageLock(!includePackageLock)}
+                disabled={loading}
+              />
+              Include package-lock.json
+            </label>
+
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={includeFavicon}
+                onChange={() => setIncludeFavicon(!includeFavicon)}
+                disabled={loading}
+              />
+              Include favicon files
+            </label>
+
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={includeImgFiles}
+                onChange={() => setIncludeImgFiles(!includeImgFiles)}
+                disabled={loading}
+              />
+              Include image files (.jpg, .png, etc.)
+            </label>
+          </div>
         </div>
 
         <div className="threshold-container">
@@ -1032,6 +1111,17 @@ function FileExplorer() {
           </div>
         )}
       </div>
+
+      {fileStats.totalFiles > 0 && !loading && (
+        <div className="stats-toggle-container">
+          <button
+            className={`stats-toggle-button ${showStatistics ? "active" : ""}`}
+            onClick={() => setShowStatistics(!showStatistics)}
+          >
+            {showStatistics ? "Hide Statistics" : "Show Statistics"}
+          </button>
+        </div>
+      )}
 
       {showStatistics && fileStats.totalFiles > 0 && !loading && (
         <div className="stats-container">
@@ -1103,7 +1193,11 @@ function FileExplorer() {
       {fileStructure && (
         <div className="result-container">
           <div className="result-header">
-            <h2>Extracted File Structure</h2>
+            <h2>
+              {folderName
+                ? `${folderName} Structure`
+                : "Extracted File Structure"}
+            </h2>
 
             <div className="search-container">
               <input
