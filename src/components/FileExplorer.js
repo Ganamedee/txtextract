@@ -33,7 +33,9 @@ function FileExplorer() {
 
       // Skip excluded files
       if (handle.kind === "file") {
-        const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(name);
+        const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
+          name
+        );
         if (
           (!options.includePackageLock && name === "package-lock.json") ||
           (!options.includeFavicon &&
@@ -56,6 +58,88 @@ function FileExplorer() {
     }
 
     return count;
+  };
+
+  // Function to build the directory tree structure
+  const buildDirectoryTree = async (
+    dirHandle,
+    path,
+    options,
+    prefix = "",
+    isLast = true,
+    indent = ""
+  ) => {
+    let treeOutput = "";
+    const entries = [];
+
+    // First, collect all entries
+    for await (const [name, handle] of dirHandle) {
+      // Skip excluded directories and files based on options
+      if (
+        (!options.includeGit && name === ".git") ||
+        (!options.includeNodeModules && name === "node_modules")
+      ) {
+        continue;
+      }
+
+      if (handle.kind === "file") {
+        const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
+          name
+        );
+        if (
+          (!options.includePackageLock && name === "package-lock.json") ||
+          (!options.includeFavicon &&
+            (name === "favicon.ico" || name.startsWith("favicon."))) ||
+          (!options.includeImgFiles && isImageFile)
+        ) {
+          continue;
+        }
+      }
+
+      entries.push({ name, handle });
+    }
+
+    // Sort entries: directories first, then files, alphabetically within each group
+    entries.sort((a, b) => {
+      if (a.handle.kind !== b.handle.kind) {
+        return a.handle.kind === "directory" ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+    // Process each entry
+    for (let i = 0; i < entries.length; i++) {
+      const { name, handle } = entries[i];
+      const entryIsLast = i === entries.length - 1;
+      const newPath = path ? `${path}/${name}` : name;
+
+      // Current line prefix
+      const linePrefix = indent + (isLast ? "└── " : "├── ");
+
+      // Next level indent
+      const nextIndent = indent + (isLast ? "    " : "│   ");
+
+      if (handle.kind === "directory") {
+        treeOutput += `${linePrefix}${name}/\n`;
+        try {
+          const subTree = await buildDirectoryTree(
+            handle,
+            newPath,
+            options,
+            prefix + "  ",
+            entryIsLast,
+            nextIndent
+          );
+          treeOutput += subTree;
+        } catch (error) {
+          treeOutput += `${nextIndent}[Error accessing directory: ${error.message}]\n`;
+        }
+      } else {
+        treeOutput += `${linePrefix}${name}\n`;
+      }
+    }
+
+    return treeOutput;
   };
 
   const handleFolderSelect = async () => {
@@ -102,10 +186,17 @@ function FileExplorer() {
     }
   };
 
+  // Updated processDirectory function to include the tree view
   const processDirectory = async (dirHandle, path, options) => {
     let output = "";
 
-    // Iterate through directory entries
+    // First, generate the tree structure for the top of the file
+    output += "// Full Directory Structure:\n";
+    const treeStructure = await buildDirectoryTree(dirHandle, "", options);
+    output += treeStructure;
+    output += "\n// Detailed File Contents:\n";
+
+    // Original file content processing logic
     for await (const [name, handle] of dirHandle) {
       const newPath = path ? `${path}/${name}` : name;
 
@@ -119,7 +210,9 @@ function FileExplorer() {
 
       // Skip excluded files
       if (handle.kind === "file") {
-        const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(name);
+        const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
+          name
+        );
         if (
           (!options.includePackageLock && name === "package-lock.json") ||
           (!options.includeFavicon &&

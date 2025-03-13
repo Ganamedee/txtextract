@@ -27,6 +27,13 @@
       "react-app/jest"
     ]
   },
+  "keywords": [
+    "file structure",
+    "code extraction",
+    "project documentation",
+    "directory tree",
+    "developer tools"
+  ],
   "browserslist": {
     "production": [
       ">0.2%",
