@@ -41,8 +41,9 @@
   transition: all 0.3s ease;
   box-shadow: 0 4px 6px var(--color-shadow);
   font-weight: 600;
-  width: 100%; /* Make button fill the width for better centering */
-  max-width: 300px; /* Limit maximum width */
+  width: 100%; /* Full width to match the toggle button */
+  /* Remove or comment out the max-width property */
+  /* max-width: 300px; */
 }
 
 .select-button:hover {
