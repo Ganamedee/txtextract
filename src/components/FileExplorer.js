@@ -28,6 +28,7 @@ function FileExplorer() {
   const [folderName, setFolderName] = useState("");
   const [showAbout, setShowAbout] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showExclusions, setShowExclusions] = useState(false); // New state to toggle exclusion options
   const [fileStats, setFileStats] = useState({
     totalFiles: 0,
     totalSize: 0,
@@ -40,10 +41,33 @@ function FileExplorer() {
   const [searchResults, setSearchResults] = useState([]);
   const [currentResultIndex, setCurrentResultIndex] = useState(-1);
   const outputRef = useRef(null);
+  const exclusionsRef = useRef(null);
+
+  // Use effect for exclusion panel animation height calculation
+  useEffect(() => {
+    if (exclusionsRef.current) {
+      if (showExclusions) {
+        exclusionsRef.current.style.maxHeight = `${exclusionsRef.current.scrollHeight}px`;
+      } else {
+        exclusionsRef.current.style.maxHeight = "0";
+      }
+    }
+  }, [showExclusions]);
 
   // Check if the File System Access API is supported
   const isFileSystemAccessSupported = () => {
     return "showDirectoryPicker" in window;
+  };
+
+  // Toggle panels with animation for about and feedback
+  const toggleAbout = () => {
+    if (showFeedback) setShowFeedback(false);
+    setShowAbout(!showAbout);
+  };
+
+  const toggleFeedback = () => {
+    if (showAbout) setShowAbout(false);
+    setShowFeedback(!showFeedback);
   };
 
   // Function to count files in directory (for progress tracking)
@@ -1005,6 +1029,102 @@ function FileExplorer() {
           >
             {loading ? "Processing..." : "Select Folder"}
           </button>
+
+          {/* Top buttons for about and feedback */}
+          <div className="header-buttons">
+            <button
+              className="header-button"
+              onClick={toggleAbout}
+              aria-label="About"
+            >
+              About
+            </button>
+            <button
+              className="header-button"
+              onClick={toggleFeedback}
+              aria-label="Feedback"
+            >
+              Feedback
+            </button>
+          </div>
+        </div>
+
+        {/* About panel (animated) */}
+        <div className={`info-panel ${showAbout ? "show" : ""}`}>
+          {showAbout && (
+            <div className="about-panel">
+              <h3>About TxtExtract</h3>
+              <p>
+                TxtExtract helps you extract and document your project's file
+                structure and contents. It runs entirely in your browser - no
+                data is sent to any server.
+              </p>
+              <p>
+                <strong>Perfect for AI tools:</strong> TxtExtract eliminates the
+                need to manually attach multiple files when working with AI
+                assistants. Simply extract your project structure, copy the
+                result, and paste it into your AI conversation for context.
+              </p>
+              <p>
+                <strong>Features:</strong>
+              </p>
+              <ul>
+                <li>Extract complete file structure and contents</li>
+                <li>Control which files and folders to include</li>
+                <li>Download in multiple formats (TXT, MD, HTML, JSON)</li>
+                <li>Search across all files</li>
+                <li>View file statistics and breakdowns</li>
+              </ul>
+              <button className="close-button" onClick={toggleAbout}>
+                Close
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Feedback panel (animated) */}
+        <div className={`info-panel ${showFeedback ? "show" : ""}`}>
+          {showFeedback && (
+            <div className="about-panel">
+              <h3>Provide Feedback</h3>
+              <p>
+                We appreciate your feedback to help improve TxtExtract! If you
+                have suggestions or encounter issues, please let us know through
+                one of these channels:
+              </p>
+              <ul>
+                <li>
+                  <strong>GitHub Issues:</strong> Open an issue on our{" "}
+                  <a
+                    href="https://github.com/yourusername/txtextract"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    GitHub repository
+                  </a>
+                </li>
+                <li>
+                  <strong>Email:</strong> Send feedback to{" "}
+                  <a href="mailto:feedback@txtextract.com">
+                    feedback@txtextract.com
+                  </a>
+                </li>
+                <li>
+                  <strong>Twitter:</strong> Tweet us{" "}
+                  <a
+                    href="https://twitter.com/txtextract"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    @txtextract
+                  </a>
+                </li>
+              </ul>
+              <button className="close-button" onClick={toggleFeedback}>
+                Close
+              </button>
+            </div>
+          )}
         </div>
 
         {loading && (
@@ -1024,128 +1144,156 @@ function FileExplorer() {
 
         {error && <div className="error-message">{error}</div>}
 
-        <div className="options-section">
-          <h4>File & Folder Exclusions</h4>
+        {/* Toggle button for exclusions */}
+        <div className="options-toggle">
+          <button
+            className={`toggle-button ${showExclusions ? "active" : ""}`}
+            onClick={() => setShowExclusions(!showExclusions)}
+          >
+            <span className="toggle-icon">{showExclusions ? "−" : "+"}</span>
+            File & Folder Exclusion Options
+          </button>
+        </div>
 
-          {/* Reorganized inclusion options into collapsible categories */}
-          <div className="exclusion-categories">
-            {/* System and Hidden Files Category */}
-            <div className="exclusion-category">
-              <h5>System & Hidden Files</h5>
-              <div className="exclusion-options">
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={includeGit}
-                    onChange={() => setIncludeGit(!includeGit)}
-                    disabled={loading}
-                  />
-                  Include .git folders
-                </label>
+        {/* Collapsible exclusion options */}
+        <div
+          className="exclusion-wrapper"
+          ref={exclusionsRef}
+          style={{
+            maxHeight: showExclusions
+              ? `${exclusionsRef.current?.scrollHeight}px`
+              : "0",
+            overflow: "hidden",
+            transition: "max-height 0.3s ease-in-out",
+          }}
+        >
+          <div className="options-section">
+            {/* Reorganized inclusion options into collapsible categories */}
+            <div className="exclusion-categories">
+              {/* System and Hidden Files Category */}
+              <div className="exclusion-category">
+                <h5>System & Hidden Files</h5>
+                <div className="exclusion-options">
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={includeGit}
+                      onChange={() => setIncludeGit(!includeGit)}
+                      disabled={loading}
+                    />
+                    Include .git folders
+                  </label>
 
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={includeDSStore}
-                    onChange={() => setIncludeDSStore(!includeDSStore)}
-                    disabled={loading}
-                  />
-                  Include .DS_Store files
-                </label>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={includeDSStore}
+                      onChange={() => setIncludeDSStore(!includeDSStore)}
+                      disabled={loading}
+                    />
+                    Include .DS_Store files
+                  </label>
 
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={includeLogFiles}
-                    onChange={() => setIncludeLogFiles(!includeLogFiles)}
-                    disabled={loading}
-                  />
-                  Include log files
-                </label>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={includeLogFiles}
+                      onChange={() => setIncludeLogFiles(!includeLogFiles)}
+                      disabled={loading}
+                    />
+                    Include log files
+                  </label>
+                </div>
               </div>
-            </div>
 
-            {/* Build & Dependencies Category */}
-            <div className="exclusion-category">
-              <h5>Build & Dependencies</h5>
-              <div className="exclusion-options">
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={includeNodeModules}
-                    onChange={() => setIncludeNodeModules(!includeNodeModules)}
-                    disabled={loading}
-                  />
-                  Include node_modules
-                </label>
+              {/* Build & Dependencies Category */}
+              <div className="exclusion-category">
+                <h5>Build & Dependencies</h5>
+                <div className="exclusion-options">
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={includeNodeModules}
+                      onChange={() =>
+                        setIncludeNodeModules(!includeNodeModules)
+                      }
+                      disabled={loading}
+                    />
+                    Include node_modules
+                  </label>
 
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={includePackageLock}
-                    onChange={() => setIncludePackageLock(!includePackageLock)}
-                    disabled={loading}
-                  />
-                  Include package-lock.json
-                </label>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={includePackageLock}
+                      onChange={() =>
+                        setIncludePackageLock(!includePackageLock)
+                      }
+                      disabled={loading}
+                    />
+                    Include package-lock.json
+                  </label>
 
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={includeBuildFolders}
-                    onChange={() =>
-                      setIncludeBuildFolders(!includeBuildFolders)
-                    }
-                    disabled={loading}
-                  />
-                  Include build folders (build, .next, out)
-                </label>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={includeBuildFolders}
+                      onChange={() =>
+                        setIncludeBuildFolders(!includeBuildFolders)
+                      }
+                      disabled={loading}
+                    />
+                    Include build folders
+                  </label>
 
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={includeDistFolders}
-                    onChange={() => setIncludeDistFolders(!includeDistFolders)}
-                    disabled={loading}
-                  />
-                  Include dist folders
-                </label>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={includeDistFolders}
+                      onChange={() =>
+                        setIncludeDistFolders(!includeDistFolders)
+                      }
+                      disabled={loading}
+                    />
+                    Include dist folders
+                  </label>
 
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={includeCoverage}
-                    onChange={() => setIncludeCoverage(!includeCoverage)}
-                    disabled={loading}
-                  />
-                  Include coverage folders
-                </label>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={includeCoverage}
+                      onChange={() => setIncludeCoverage(!includeCoverage)}
+                      disabled={loading}
+                    />
+                    Include coverage folders
+                  </label>
+                </div>
               </div>
-            </div>
 
-            {/* Media Files Category */}
-            <div className="exclusion-category">
-              <h5>Media Files</h5>
-              <div className="exclusion-options">
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={includeImgFiles}
-                    onChange={() => setIncludeImgFiles(!includeImgFiles)}
-                    disabled={loading}
-                  />
-                  Include image files (.jpg, .png, etc.)
-                </label>
+              {/* Media Files Category */}
+              <div className="exclusion-category">
+                <h5>Media Files</h5>
+                <div className="exclusion-options">
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={includeImgFiles}
+                      onChange={() => setIncludeImgFiles(!includeImgFiles)}
+                      disabled={loading}
+                    />
+                    Include image files (.jpg, .png, etc.)
+                  </label>
 
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={includeFavicon}
-                    onChange={() => setIncludeFavicon(!includeFavicon)}
-                    disabled={loading}
-                  />
-                  Include favicon files
-                </label>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={includeFavicon}
+                      onChange={() => setIncludeFavicon(!includeFavicon)}
+                      disabled={loading}
+                    />
+                    Include favicon files
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -1176,100 +1324,7 @@ function FileExplorer() {
             browser.
           </div>
         )}
-
-        {/* Moved the about and feedback buttons to the bottom */}
-        <div className="footer-buttons">
-          <button
-            className="footer-button"
-            onClick={() => setShowAbout(!showAbout)}
-          >
-            About
-          </button>
-          <button
-            className="footer-button"
-            onClick={() => setShowFeedback(!showFeedback)}
-          >
-            Feedback
-          </button>
-        </div>
       </div>
-
-      {/* About panel (now shows at the bottom) */}
-      {showAbout && (
-        <div className="about-panel">
-          <h3>About TxtExtract</h3>
-          <p>
-            TxtExtract helps you extract and document your project's file
-            structure and contents. It runs entirely in your browser - no data
-            is sent to any server.
-          </p>
-          <p>
-            <strong>Perfect for AI tools:</strong> TxtExtract eliminates the
-            need to manually attach multiple files when working with AI
-            assistants. Simply extract your project structure, copy the result,
-            and paste it into your AI conversation for context.
-          </p>
-          <p>
-            <strong>Features:</strong>
-          </p>
-          <ul>
-            <li>Extract complete file structure and contents</li>
-            <li>Control which files and folders to include</li>
-            <li>Download in multiple formats (TXT, MD, HTML, JSON)</li>
-            <li>Search across all files</li>
-            <li>View file statistics and breakdowns</li>
-          </ul>
-          <button className="close-button" onClick={() => setShowAbout(false)}>
-            Close
-          </button>
-        </div>
-      )}
-
-      {/* Feedback panel */}
-      {showFeedback && (
-        <div className="about-panel">
-          <h3>Provide Feedback</h3>
-          <p>
-            We appreciate your feedback to help improve TxtExtract! If you have
-            suggestions or encounter issues, please let us know through one of
-            these channels:
-          </p>
-          <ul>
-            <li>
-              <strong>GitHub Issues:</strong> Open an issue on our{" "}
-              <a
-                href="https://github.com/yourusername/txtextract"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                GitHub repository
-              </a>
-            </li>
-            <li>
-              <strong>Email:</strong> Send feedback to{" "}
-              <a href="mailto:feedback@txtextract.com">
-                feedback@txtextract.com
-              </a>
-            </li>
-            <li>
-              <strong>Twitter:</strong> Tweet us{" "}
-              <a
-                href="https://twitter.com/txtextract"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                @txtextract
-              </a>
-            </li>
-          </ul>
-          <button
-            className="close-button"
-            onClick={() => setShowFeedback(false)}
-          >
-            Close
-          </button>
-        </div>
-      )}
 
       {fileStats.totalFiles > 0 && !loading && (
         <div className="stats-toggle-container">
@@ -1282,72 +1337,76 @@ function FileExplorer() {
         </div>
       )}
 
-      {showStatistics && fileStats.totalFiles > 0 && !loading && (
-        <div className="stats-container">
-          <h3>Project Statistics</h3>
+      <div className={`stats-container ${showStatistics ? "show" : ""}`}>
+        {showStatistics && fileStats.totalFiles > 0 && !loading && (
+          <>
+            <h3>Project Statistics</h3>
 
-          <div className="stats-grid">
-            <div className="stat-item">
-              <span className="stat-label">Total Files:</span>
-              <span className="stat-value">
-                {fileStats.totalFiles.toLocaleString()}
-              </span>
+            <div className="stats-grid">
+              <div className="stat-item">
+                <span className="stat-label">Total Files:</span>
+                <span className="stat-value">
+                  {fileStats.totalFiles.toLocaleString()}
+                </span>
+              </div>
+
+              <div className="stat-item">
+                <span className="stat-label">Total Size:</span>
+                <span className="stat-value">
+                  {(fileStats.totalSize / (1024 * 1024)).toFixed(2)} MB
+                </span>
+              </div>
+
+              <div className="stat-item">
+                <span className="stat-label">Average File Size:</span>
+                <span className="stat-value">
+                  {(fileStats.averageFileSize / 1024).toFixed(2)} KB
+                </span>
+              </div>
+
+              <div className="stat-item">
+                <span className="stat-label">Largest File:</span>
+                <span className="stat-value">
+                  {fileStats.largestFile.name} (
+                  {(fileStats.largestFile.size / 1024).toFixed(2)} KB)
+                </span>
+              </div>
             </div>
 
-            <div className="stat-item">
-              <span className="stat-label">Total Size:</span>
-              <span className="stat-value">
-                {(fileStats.totalSize / (1024 * 1024)).toFixed(2)} MB
-              </span>
-            </div>
-
-            <div className="stat-item">
-              <span className="stat-label">Average File Size:</span>
-              <span className="stat-value">
-                {(fileStats.averageFileSize / 1024).toFixed(2)} KB
-              </span>
-            </div>
-
-            <div className="stat-item">
-              <span className="stat-label">Largest File:</span>
-              <span className="stat-value">
-                {fileStats.largestFile.name} (
-                {(fileStats.largestFile.size / 1024).toFixed(2)} KB)
-              </span>
-            </div>
-          </div>
-
-          <h4>File Types</h4>
-          <div className="file-types-grid">
-            {Object.entries(fileStats.fileTypes)
-              .slice(0, 10)
-              .map(([ext, data]) => (
-                <div key={ext} className="file-type-item">
-                  <div className="file-type-name">.{ext}</div>
-                  <div className="file-type-count">{data.count} files</div>
-                  <div className="file-type-size">
-                    {(data.size / 1024).toFixed(1)} KB
+            <h4>File Types</h4>
+            <div className="file-types-grid">
+              {Object.entries(fileStats.fileTypes)
+                .slice(0, 10)
+                .map(([ext, data]) => (
+                  <div key={ext} className="file-type-item">
+                    <div className="file-type-name">.{ext}</div>
+                    <div className="file-type-count">{data.count} files</div>
+                    <div className="file-type-size">
+                      {(data.size / 1024).toFixed(1)} KB
+                    </div>
+                    <div
+                      className="file-type-bar"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          (data.count / fileStats.totalFiles) * 300
+                        )}%`,
+                        backgroundColor: `hsl(${
+                          ext
+                            .split("")
+                            .reduce(
+                              (sum, char) => sum + char.charCodeAt(0),
+                              0
+                            ) % 360
+                        }, 70%, 60%)`,
+                      }}
+                    ></div>
                   </div>
-                  <div
-                    className="file-type-bar"
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        (data.count / fileStats.totalFiles) * 300
-                      )}%`,
-                      backgroundColor: `hsl(${
-                        ext
-                          .split("")
-                          .reduce((sum, char) => sum + char.charCodeAt(0), 0) %
-                        360
-                      }, 70%, 60%)`,
-                    }}
-                  ></div>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
+                ))}
+            </div>
+          </>
+        )}
+      </div>
 
       {fileStructure && (
         <div className="result-container">
