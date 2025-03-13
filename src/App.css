@@ -41,13 +41,11 @@
 
 .App-description {
   font-size: 1.25rem;
-  margin-bottom: 1rem;
+  margin-bottom: 2.5rem; /* Increased from 1rem to 2.5rem */
   opacity: 0.9;
   color: var(--color-text-primary);
   transition: color 0.3s ease;
-  pointer-events: auto; /* Re-enables clicking on these elements */
 }
-
 .App-main {
   flex: 1;
   display: flex;
