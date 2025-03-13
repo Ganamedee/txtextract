@@ -34,6 +34,9 @@ function FileExplorer() {
     largestFile: { name: "", size: 0 },
     smallestFile: { name: "", size: Infinity },
     averageFileSize: 0,
+    totalLines: 0,
+    totalCharacters: 0,
+    totalWords: 0,
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -197,6 +200,14 @@ function FileExplorer() {
     return treeOutput;
   };
 
+  // Helper function to count words in a string
+  const countWords = (text) => {
+    return text
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word.length > 0).length;
+  };
+
   // Function to collect file statistics
   const collectStatistics = async (dirHandle, path, options) => {
     const stats = {
@@ -205,6 +216,9 @@ function FileExplorer() {
       fileTypes: {},
       largestFile: { name: "", size: 0 },
       smallestFile: { name: "", size: Infinity },
+      totalLines: 0,
+      totalCharacters: 0,
+      totalWords: 0,
     };
 
     await processDirectoryStats(dirHandle, path, options, stats);
@@ -288,6 +302,26 @@ function FileExplorer() {
           }
           stats.fileTypes[fileExtension].count++;
           stats.fileTypes[fileExtension].size += file.size;
+
+          // Get text content to count lines, characters, and words
+          // Skip binary files and very large files
+          if (file.size <= fileSizeThreshold * 1024 * 1024) {
+            try {
+              const text = await file.text();
+              const lines = text.split("\n").length;
+              const characters = text.length;
+              const words = countWords(text);
+
+              stats.totalLines += lines;
+              stats.totalCharacters += characters;
+              stats.totalWords += words;
+            } catch (error) {
+              console.error(
+                `Error reading file content for ${newPath}:`,
+                error
+              );
+            }
+          }
         } catch (error) {
           console.error(`Error reading file ${newPath}:`, error);
         }
@@ -638,6 +672,9 @@ function FileExplorer() {
       mdContent += `- Average File Size: ${(
         fileStats.averageFileSize / 1024
       ).toFixed(2)} KB\n`;
+      mdContent += `- Total Lines: ${fileStats.totalLines.toLocaleString()}\n`;
+      mdContent += `- Total Characters: ${fileStats.totalCharacters.toLocaleString()}\n`;
+      mdContent += `- Total Words: ${fileStats.totalWords.toLocaleString()}\n`;
       mdContent += `- Largest File: ${fileStats.largestFile.name} (${(
         fileStats.largestFile.size / 1024
       ).toFixed(2)} KB)\n\n`;
@@ -806,6 +843,15 @@ function FileExplorer() {
         <strong>Average File Size:</strong> ${(
           fileStats.averageFileSize / 1024
         ).toFixed(2)} KB
+      </div>
+      <div>
+        <strong>Total Lines:</strong> ${fileStats.totalLines.toLocaleString()}
+      </div>
+      <div>
+        <strong>Total Characters:</strong> ${fileStats.totalCharacters.toLocaleString()}
+      </div>
+      <div>
+        <strong>Total Words:</strong> ${fileStats.totalWords.toLocaleString()}
       </div>
       <div>
         <strong>Largest File:</strong> ${fileStats.largestFile.name} (${(
@@ -1254,6 +1300,27 @@ function FileExplorer() {
                   <span className="stat-label">Average File Size:</span>
                   <span className="stat-value">
                     {(fileStats.averageFileSize / 1024).toFixed(2)} KB
+                  </span>
+                </div>
+
+                <div className="stat-item">
+                  <span className="stat-label">Total Lines:</span>
+                  <span className="stat-value">
+                    {fileStats.totalLines.toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="stat-item">
+                  <span className="stat-label">Total Characters:</span>
+                  <span className="stat-value">
+                    {fileStats.totalCharacters.toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="stat-item">
+                  <span className="stat-label">Total Words:</span>
+                  <span className="stat-value">
+                    {fileStats.totalWords.toLocaleString()}
                   </span>
                 </div>
 

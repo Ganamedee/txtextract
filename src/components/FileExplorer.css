@@ -25,9 +25,8 @@
 .panel-header {
   display: flex;
   width: 100%;
-  gap: 10px;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center; /* Changed to center for proper alignment */
   margin-bottom: 1.5rem;
 }
 
@@ -40,9 +39,10 @@
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
-  flex: 1;
   box-shadow: 0 4px 6px var(--color-shadow);
   font-weight: 600;
+  width: 100%; /* Make button fill the width for better centering */
+  max-width: 300px; /* Limit maximum width */
 }
 
 .select-button:hover {
@@ -107,6 +107,7 @@
   animation: fadeIn 0.3s ease-in-out;
 }
 
+/* Enhanced fade-in animation for panels */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -116,6 +117,23 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* New fade-out animation for closing panels */
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+/* Apply animation to closing panels */
+.info-panel:not(.show) .about-panel {
+  animation: fadeOut 0.3s ease-in-out forwards;
 }
 
 .about-panel h3 {
@@ -859,6 +877,32 @@ mark.current-match {
   box-shadow: 0 0 0 2px var(--color-button-primary);
   outline: none;
   border-color: var(--color-button-primary);
+}
+
+/* Darkened overlay for about and feedback panels */
+.global-panel::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6); /* Darker background overlay */
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.global-panel.show::before {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.global-panel .about-panel {
+  background: rgba(20, 20, 30, 0.9); /* Darker panel background */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Responsive adjustments */

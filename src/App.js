@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./App.css";
 import FileExplorer from "./components/FileExplorer";
 import { Analytics } from "@vercel/analytics/react";
@@ -46,17 +46,80 @@ const ThemeToggle = () => {
 function App() {
   const [showAbout, setShowAbout] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [closingAbout, setClosingAbout] = useState(false);
+  const [closingFeedback, setClosingFeedback] = useState(false);
 
-  // Toggle functions for about and feedback panels
+  const aboutRef = useRef(null);
+  const feedbackRef = useRef(null);
+
+  // Toggle functions for about and feedback panels with animations
   const toggleAbout = () => {
-    if (showFeedback) setShowFeedback(false);
-    setShowAbout(!showAbout);
+    if (showFeedback) {
+      setClosingFeedback(true);
+      setTimeout(() => {
+        setShowFeedback(false);
+        setClosingFeedback(false);
+        setShowAbout(true);
+      }, 300); // Match animation duration
+    } else if (showAbout) {
+      setClosingAbout(true);
+      setTimeout(() => {
+        setShowAbout(false);
+        setClosingAbout(false);
+      }, 300); // Match animation duration
+    } else {
+      setShowAbout(true);
+    }
   };
 
   const toggleFeedback = () => {
-    if (showAbout) setShowAbout(false);
-    setShowFeedback(!showFeedback);
+    if (showAbout) {
+      setClosingAbout(true);
+      setTimeout(() => {
+        setShowAbout(false);
+        setClosingAbout(false);
+        setShowFeedback(true);
+      }, 300); // Match animation duration
+    } else if (showFeedback) {
+      setClosingFeedback(true);
+      setTimeout(() => {
+        setShowFeedback(false);
+        setClosingFeedback(false);
+      }, 300); // Match animation duration
+    } else {
+      setShowFeedback(true);
+    }
   };
+
+  // Add a click outside listener to close panels
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        showAbout &&
+        aboutRef.current &&
+        !aboutRef.current.contains(event.target)
+      ) {
+        toggleAbout();
+      }
+      if (
+        showFeedback &&
+        feedbackRef.current &&
+        !feedbackRef.current.contains(event.target)
+      ) {
+        toggleFeedback();
+      }
+    };
+
+    // Add when panel is open
+    if (showAbout || showFeedback) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    // Cleanup
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showAbout, showFeedback]);
 
   return (
     <div className="App">
@@ -86,10 +149,13 @@ function App() {
         </div>
       </header>
 
-      {/* About panel (animated) */}
+      {/* About panel with enhanced animation */}
       <div className={`info-panel global-panel ${showAbout ? "show" : ""}`}>
-        {showAbout && (
-          <div className="about-panel">
+        {(showAbout || closingAbout) && (
+          <div
+            ref={aboutRef}
+            className={`about-panel ${closingAbout ? "closing" : ""}`}
+          >
             <h3>About TxtExtract</h3>
             <p>
               TxtExtract helps you extract and document your project's file
@@ -119,10 +185,13 @@ function App() {
         )}
       </div>
 
-      {/* Feedback panel (animated) */}
+      {/* Feedback panel with enhanced animation */}
       <div className={`info-panel global-panel ${showFeedback ? "show" : ""}`}>
-        {showFeedback && (
-          <div className="about-panel">
+        {(showFeedback || closingFeedback) && (
+          <div
+            ref={feedbackRef}
+            className={`about-panel ${closingFeedback ? "closing" : ""}`}
+          >
             <h3>Provide Feedback</h3>
             <p>
               We appreciate your feedback to help improve TxtExtract! If you
