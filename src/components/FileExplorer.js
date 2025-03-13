@@ -1332,80 +1332,83 @@ function FileExplorer() {
             className={`stats-toggle-button ${showStatistics ? "active" : ""}`}
             onClick={() => setShowStatistics(!showStatistics)}
           >
+            <span className="toggle-icon">{showStatistics ? "−" : "+"}</span>
             {showStatistics ? "Hide Statistics" : "Show Statistics"}
           </button>
         </div>
       )}
 
       <div className={`stats-container ${showStatistics ? "show" : ""}`}>
-        {showStatistics && fileStats.totalFiles > 0 && !loading && (
-          <>
-            <h3>Project Statistics</h3>
+        <div className="stats-content">
+          {fileStats.totalFiles > 0 && !loading && (
+            <>
+              <h3>Project Statistics</h3>
 
-            <div className="stats-grid">
-              <div className="stat-item">
-                <span className="stat-label">Total Files:</span>
-                <span className="stat-value">
-                  {fileStats.totalFiles.toLocaleString()}
-                </span>
+              <div className="stats-grid">
+                <div className="stat-item">
+                  <span className="stat-label">Total Files:</span>
+                  <span className="stat-value">
+                    {fileStats.totalFiles.toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="stat-item">
+                  <span className="stat-label">Total Size:</span>
+                  <span className="stat-value">
+                    {(fileStats.totalSize / (1024 * 1024)).toFixed(2)} MB
+                  </span>
+                </div>
+
+                <div className="stat-item">
+                  <span className="stat-label">Average File Size:</span>
+                  <span className="stat-value">
+                    {(fileStats.averageFileSize / 1024).toFixed(2)} KB
+                  </span>
+                </div>
+
+                <div className="stat-item">
+                  <span className="stat-label">Largest File:</span>
+                  <span className="stat-value">
+                    {fileStats.largestFile.name} (
+                    {(fileStats.largestFile.size / 1024).toFixed(2)} KB)
+                  </span>
+                </div>
               </div>
 
-              <div className="stat-item">
-                <span className="stat-label">Total Size:</span>
-                <span className="stat-value">
-                  {(fileStats.totalSize / (1024 * 1024)).toFixed(2)} MB
-                </span>
-              </div>
-
-              <div className="stat-item">
-                <span className="stat-label">Average File Size:</span>
-                <span className="stat-value">
-                  {(fileStats.averageFileSize / 1024).toFixed(2)} KB
-                </span>
-              </div>
-
-              <div className="stat-item">
-                <span className="stat-label">Largest File:</span>
-                <span className="stat-value">
-                  {fileStats.largestFile.name} (
-                  {(fileStats.largestFile.size / 1024).toFixed(2)} KB)
-                </span>
-              </div>
-            </div>
-
-            <h4>File Types</h4>
-            <div className="file-types-grid">
-              {Object.entries(fileStats.fileTypes)
-                .slice(0, 10)
-                .map(([ext, data]) => (
-                  <div key={ext} className="file-type-item">
-                    <div className="file-type-name">.{ext}</div>
-                    <div className="file-type-count">{data.count} files</div>
-                    <div className="file-type-size">
-                      {(data.size / 1024).toFixed(1)} KB
+              <h4>File Types</h4>
+              <div className="file-types-grid">
+                {Object.entries(fileStats.fileTypes)
+                  .slice(0, 10)
+                  .map(([ext, data]) => (
+                    <div key={ext} className="file-type-item">
+                      <div className="file-type-name">.{ext}</div>
+                      <div className="file-type-count">{data.count} files</div>
+                      <div className="file-type-size">
+                        {(data.size / 1024).toFixed(1)} KB
+                      </div>
+                      <div
+                        className="file-type-bar"
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            (data.count / fileStats.totalFiles) * 300
+                          )}%`,
+                          backgroundColor: `hsl(${
+                            ext
+                              .split("")
+                              .reduce(
+                                (sum, char) => sum + char.charCodeAt(0),
+                                0
+                              ) % 360
+                          }, 70%, 60%)`,
+                        }}
+                      ></div>
                     </div>
-                    <div
-                      className="file-type-bar"
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          (data.count / fileStats.totalFiles) * 300
-                        )}%`,
-                        backgroundColor: `hsl(${
-                          ext
-                            .split("")
-                            .reduce(
-                              (sum, char) => sum + char.charCodeAt(0),
-                              0
-                            ) % 360
-                        }, 70%, 60%)`,
-                      }}
-                    ></div>
-                  </div>
-                ))}
-            </div>
-          </>
-        )}
+                  ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {fileStructure && (

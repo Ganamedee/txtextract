@@ -3,6 +3,7 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  position: relative;
 }
 
 .App-header {
@@ -15,6 +16,7 @@
 
 .header-content {
   flex: 1;
+  text-align: left;
 }
 
 .App-title {
@@ -67,27 +69,49 @@
   text-decoration: underline;
 }
 
+/* Top Navigation */
+.top-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-button {
+  background: transparent;
+  color: var(--color-text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.nav-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 6px var(--color-shadow);
+}
+
+/* Theme toggle in top nav */
 .theme-toggle {
   background: transparent;
   border: none;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   cursor: pointer;
   padding: 0.5rem;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 3rem;
-  height: 3rem;
+  width: 2.5rem;
+  height: 2.5rem;
   transition: background-color 0.3s ease, transform 0.5s ease;
-  position: absolute;
-  right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
 }
 
 .theme-toggle:hover {
   background-color: var(--color-panel-bg);
+  transform: translateY(-2px);
 }
 
 /* Animation for theme toggle */
@@ -97,17 +121,66 @@
 
 @keyframes rotate-toggle {
   0% {
-    transform: translateY(-50%) rotate(0deg) scale(1);
+    transform: rotate(0deg) scale(1);
   }
   50% {
-    transform: translateY(-50%) rotate(180deg) scale(0.8);
+    transform: rotate(180deg) scale(0.8);
   }
   100% {
-    transform: translateY(-50%) rotate(360deg) scale(1);
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+/* Global panels for About and Feedback (shown from top navigation) */
+.global-panel {
+  position: absolute;
+  width: 100%;
+  max-width: 800px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.5s ease-in-out, opacity 0.3s ease;
+  opacity: 0;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.global-panel.show {
+  max-height: 1000px; /* Large value to accommodate content */
+  opacity: 1;
+}
+
+.global-panel .about-panel {
+  margin: 0;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
 @media (max-width: 768px) {
+  .App-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .header-content {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+
   .App-title {
     font-size: 2.5rem;
   }
@@ -116,13 +189,8 @@
     font-size: 1rem;
   }
 
-  .App-header {
-    padding-right: 4rem; /* Make space for the theme toggle */
-  }
-
-  .theme-toggle {
-    font-size: 1.25rem;
-    width: 2.5rem;
-    height: 2.5rem;
+  .top-nav {
+    width: 100%;
+    justify-content: center;
   }
 }
