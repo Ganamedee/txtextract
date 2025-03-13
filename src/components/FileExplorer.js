@@ -10,6 +10,7 @@ function FileExplorer() {
   const [includePackageLock, setIncludePackageLock] = useState(false);
   const [includeFavicon, setIncludeFavicon] = useState(false);
   const [includeImgFiles, setIncludeImgFiles] = useState(false);
+  const [showStatistics, setShowStatistics] = useState(false); // New state for statistics toggle
   const [loading, setLoading] = useState(false);
   const [processedFiles, setProcessedFiles] = useState(0);
   const [totalFiles, setTotalFiles] = useState(0);
@@ -975,6 +976,17 @@ function FileExplorer() {
             />
             Include image files (.jpg, .png, etc.)
           </label>
+
+          {fileStats.totalFiles > 0 && (
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={showStatistics}
+                onChange={() => setShowStatistics(!showStatistics)}
+              />
+              Show file statistics
+            </label>
+          )}
         </div>
 
         <div className="threshold-container">
@@ -1021,7 +1033,7 @@ function FileExplorer() {
         )}
       </div>
 
-      {fileStats.totalFiles > 0 && !loading && (
+      {showStatistics && fileStats.totalFiles > 0 && !loading && (
         <div className="stats-container">
           <h3>Project Statistics</h3>
 
