@@ -15,8 +15,11 @@
 }
 
 .header-content {
-  flex: 1;
+  position: absolute;
+  left: 0;
+  right: 0;
   text-align: center;
+  pointer-events: none; /* Allows clicking through to buttons behind if needed */
 }
 
 .App-title {
@@ -33,6 +36,7 @@
   margin-bottom: 1rem;
   text-shadow: 0 4px 6px var(--color-shadow);
   transition: text-shadow 0.3s ease;
+  pointer-events: auto; /* Re-enables clicking on these elements */
 }
 
 .App-description {
@@ -41,6 +45,7 @@
   opacity: 0.9;
   color: var(--color-text-primary);
   transition: color 0.3s ease;
+  pointer-events: auto; /* Re-enables clicking on these elements */
 }
 
 .App-main {
@@ -74,6 +79,9 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-left: auto; /* Push navigation to the right */
+  position: relative;
+  z-index: 1; /* Ensure buttons remain clickable */
 }
 
 .nav-button {
