@@ -57,18 +57,31 @@
   box-shadow: none;
 }
 
-.about-button {
+/* Footer buttons (About and Feedback) */
+.footer-buttons {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-panel-border);
+}
+
+.footer-button {
   background: transparent;
   color: var(--color-text-primary);
   border: 1px solid var(--color-panel-border);
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 1.25rem;
   font-size: 0.9rem;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
+  text-align: center;
+  min-width: 100px;
 }
 
-.about-button:hover {
+.footer-button:hover {
   background: rgba(255, 255, 255, 0.1);
   transform: translateY(-2px);
 }
@@ -137,25 +150,47 @@
   color: var(--color-text-primary);
 }
 
-.checkbox-container {
+/* New category-based exclusion structure */
+.exclusion-categories {
   display: flex;
   flex-direction: column;
-  width: 100%;
-  gap: 1rem;
+  gap: 1.25rem;
+}
+
+.exclusion-category {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.exclusion-category h5 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.5rem;
+}
+
+.exclusion-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
 }
 
 .checkbox {
   display: flex;
   align-items: center;
-  font-size: 1rem;
+  font-size: 0.9rem;
   cursor: pointer;
   color: var(--color-text-primary);
 }
 
 .checkbox input {
-  margin-right: 10px;
-  width: 18px;
-  height: 18px;
+  margin-right: 8px;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
   accent-color: var(--color-button-primary);
 }
@@ -579,5 +614,18 @@ mark.current-match {
   .stats-grid,
   .file-types-grid {
     grid-template-columns: 1fr;
+  }
+
+  .exclusion-options {
+    grid-template-columns: 1fr;
+  }
+
+  .footer-buttons {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .footer-button {
+    width: 100%;
   }
 }

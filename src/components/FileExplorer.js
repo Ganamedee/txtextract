@@ -5,11 +5,19 @@ import "highlight.js/styles/atom-one-dark.css";
 
 function FileExplorer() {
   const [fileStructure, setFileStructure] = useState("");
+
+  // Exclusion options - expanded with more default folders
   const [includeGit, setIncludeGit] = useState(false);
   const [includeNodeModules, setIncludeNodeModules] = useState(false);
   const [includePackageLock, setIncludePackageLock] = useState(false);
   const [includeFavicon, setIncludeFavicon] = useState(false);
   const [includeImgFiles, setIncludeImgFiles] = useState(false);
+  const [includeDSStore, setIncludeDSStore] = useState(false);
+  const [includeBuildFolders, setIncludeBuildFolders] = useState(false);
+  const [includeDistFolders, setIncludeDistFolders] = useState(false);
+  const [includeCoverage, setIncludeCoverage] = useState(false);
+  const [includeLogFiles, setIncludeLogFiles] = useState(false);
+
   const [showStatistics, setShowStatistics] = useState(false);
   const [loading, setLoading] = useState(false);
   const [processedFiles, setProcessedFiles] = useState(0);
@@ -19,6 +27,7 @@ function FileExplorer() {
   const [exportFormat, setExportFormat] = useState("txt");
   const [folderName, setFolderName] = useState("");
   const [showAbout, setShowAbout] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [fileStats, setFileStats] = useState({
     totalFiles: 0,
     totalSize: 0,
@@ -45,7 +54,12 @@ function FileExplorer() {
       // Skip excluded directories
       if (
         (!options.includeGit && name === ".git") ||
-        (!options.includeNodeModules && name === "node_modules")
+        (!options.includeNodeModules && name === "node_modules") ||
+        (!options.includeBuildFolders &&
+          (name === "build" || name === "out" || name === ".next")) ||
+        (!options.includeDistFolders && name === "dist") ||
+        (!options.includeCoverage && name === "coverage") ||
+        (!options.includeDSStore && name === ".DS_Store")
       ) {
         continue;
       }
@@ -55,11 +69,14 @@ function FileExplorer() {
         const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
           name
         );
+        const isLogFile = /\.(log|logs)$/i.test(name);
+
         if (
           (!options.includePackageLock && name === "package-lock.json") ||
           (!options.includeFavicon &&
             (name === "favicon.ico" || name.startsWith("favicon."))) ||
-          (!options.includeImgFiles && isImageFile)
+          (!options.includeImgFiles && isImageFile) ||
+          (!options.includeLogFiles && isLogFile)
         ) {
           continue;
         }
@@ -96,7 +113,12 @@ function FileExplorer() {
       // Skip excluded directories and files based on options
       if (
         (!options.includeGit && name === ".git") ||
-        (!options.includeNodeModules && name === "node_modules")
+        (!options.includeNodeModules && name === "node_modules") ||
+        (!options.includeBuildFolders &&
+          (name === "build" || name === "out" || name === ".next")) ||
+        (!options.includeDistFolders && name === "dist") ||
+        (!options.includeCoverage && name === "coverage") ||
+        (!options.includeDSStore && name === ".DS_Store")
       ) {
         continue;
       }
@@ -105,11 +127,14 @@ function FileExplorer() {
         const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
           name
         );
+        const isLogFile = /\.(log|logs)$/i.test(name);
+
         if (
           (!options.includePackageLock && name === "package-lock.json") ||
           (!options.includeFavicon &&
             (name === "favicon.ico" || name.startsWith("favicon."))) ||
-          (!options.includeImgFiles && isImageFile)
+          (!options.includeImgFiles && isImageFile) ||
+          (!options.includeLogFiles && isLogFile)
         ) {
           continue;
         }
@@ -196,7 +221,12 @@ function FileExplorer() {
       // Skip excluded directories
       if (
         (!options.includeGit && name === ".git") ||
-        (!options.includeNodeModules && name === "node_modules")
+        (!options.includeNodeModules && name === "node_modules") ||
+        (!options.includeBuildFolders &&
+          (name === "build" || name === "out" || name === ".next")) ||
+        (!options.includeDistFolders && name === "dist") ||
+        (!options.includeCoverage && name === "coverage") ||
+        (!options.includeDSStore && name === ".DS_Store")
       ) {
         continue;
       }
@@ -212,11 +242,14 @@ function FileExplorer() {
         const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
           name
         );
+        const isLogFile = /\.(log|logs)$/i.test(name);
+
         if (
           (!options.includePackageLock && name === "package-lock.json") ||
           (!options.includeFavicon &&
             (name === "favicon.ico" || name.startsWith("favicon."))) ||
-          (!options.includeImgFiles && isImageFile)
+          (!options.includeImgFiles && isImageFile) ||
+          (!options.includeLogFiles && isLogFile)
         ) {
           continue;
         }
@@ -294,6 +327,11 @@ function FileExplorer() {
         includePackageLock,
         includeFavicon,
         includeImgFiles,
+        includeDSStore,
+        includeBuildFolders,
+        includeDistFolders,
+        includeCoverage,
+        includeLogFiles,
       };
       const totalFilesCount = await countFiles(dirHandle, options);
       setTotalFiles(totalFilesCount);
@@ -333,7 +371,12 @@ function FileExplorer() {
       // Skip excluded directories
       if (
         (!options.includeGit && name === ".git") ||
-        (!options.includeNodeModules && name === "node_modules")
+        (!options.includeNodeModules && name === "node_modules") ||
+        (!options.includeBuildFolders &&
+          (name === "build" || name === "out" || name === ".next")) ||
+        (!options.includeDistFolders && name === "dist") ||
+        (!options.includeCoverage && name === "coverage") ||
+        (!options.includeDSStore && name === ".DS_Store")
       ) {
         continue;
       }
@@ -343,11 +386,14 @@ function FileExplorer() {
         const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
           name
         );
+        const isLogFile = /\.(log|logs)$/i.test(name);
+
         if (
           (!options.includePackageLock && name === "package-lock.json") ||
           (!options.includeFavicon &&
             (name === "favicon.ico" || name.startsWith("favicon."))) ||
-          (!options.includeImgFiles && isImageFile)
+          (!options.includeImgFiles && isImageFile) ||
+          (!options.includeLogFiles && isLogFile)
         ) {
           continue;
         }
@@ -959,112 +1005,149 @@ function FileExplorer() {
           >
             {loading ? "Processing..." : "Select Folder"}
           </button>
-
-          <button
-            className="about-button"
-            onClick={() => setShowAbout(!showAbout)}
-          >
-            About
-          </button>
         </div>
 
-        {showAbout && (
-          <div className="about-panel">
-            <h3>About TxtExtract</h3>
-            <p>
-              TxtExtract helps you extract and document your project's file
-              structure and contents. It runs entirely in your browser - no data
-              is sent to any server.
-            </p>
-            <p>
-              <strong>Perfect for AI tools:</strong> TxtExtract eliminates the
-              need to manually attach multiple files when working with AI
-              assistants. Simply extract your project structure, copy the
-              result, and paste it into your AI conversation for context.
-            </p>
-            <p>
-              <strong>Features:</strong>
-            </p>
-            <ul>
-              <li>Extract complete file structure and contents</li>
-              <li>Control which files and folders to include</li>
-              <li>Download in multiple formats (TXT, MD, HTML, JSON)</li>
-              <li>Search across all files</li>
-              <li>View file statistics and breakdowns</li>
-            </ul>
-            <p>
-              <strong>Feedback:</strong> If you have suggestions or encounter
-              issues, please open an issue on our{" "}
-              <a
-                href="https://github.com/yourusername/txtextract"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                GitHub page
-              </a>
-              .
-            </p>
-            <button
-              className="close-button"
-              onClick={() => setShowAbout(false)}
-            >
-              Close
-            </button>
+        {loading && (
+          <div className="progress-container">
+            <div className="progress-bar">
+              <div
+                className="progress-fill"
+                style={{ width: `${progressPercentage}%` }}
+              ></div>
+            </div>
+            <div className="progress-text">
+              {processedFiles} of {totalFiles} files processed (
+              {progressPercentage}%)
+            </div>
           </div>
         )}
 
+        {error && <div className="error-message">{error}</div>}
+
         <div className="options-section">
-          <h4>Inclusion Options</h4>
-          <div className="checkbox-container">
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={includeGit}
-                onChange={() => setIncludeGit(!includeGit)}
-                disabled={loading}
-              />
-              Include .git folders
-            </label>
+          <h4>File & Folder Exclusions</h4>
 
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={includeNodeModules}
-                onChange={() => setIncludeNodeModules(!includeNodeModules)}
-                disabled={loading}
-              />
-              Include node_modules
-            </label>
+          {/* Reorganized inclusion options into collapsible categories */}
+          <div className="exclusion-categories">
+            {/* System and Hidden Files Category */}
+            <div className="exclusion-category">
+              <h5>System & Hidden Files</h5>
+              <div className="exclusion-options">
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={includeGit}
+                    onChange={() => setIncludeGit(!includeGit)}
+                    disabled={loading}
+                  />
+                  Include .git folders
+                </label>
 
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={includePackageLock}
-                onChange={() => setIncludePackageLock(!includePackageLock)}
-                disabled={loading}
-              />
-              Include package-lock.json
-            </label>
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={includeDSStore}
+                    onChange={() => setIncludeDSStore(!includeDSStore)}
+                    disabled={loading}
+                  />
+                  Include .DS_Store files
+                </label>
 
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={includeFavicon}
-                onChange={() => setIncludeFavicon(!includeFavicon)}
-                disabled={loading}
-              />
-              Include favicon files
-            </label>
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={includeLogFiles}
+                    onChange={() => setIncludeLogFiles(!includeLogFiles)}
+                    disabled={loading}
+                  />
+                  Include log files
+                </label>
+              </div>
+            </div>
 
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={includeImgFiles}
-                onChange={() => setIncludeImgFiles(!includeImgFiles)}
-                disabled={loading}
-              />
-              Include image files (.jpg, .png, etc.)
-            </label>
+            {/* Build & Dependencies Category */}
+            <div className="exclusion-category">
+              <h5>Build & Dependencies</h5>
+              <div className="exclusion-options">
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={includeNodeModules}
+                    onChange={() => setIncludeNodeModules(!includeNodeModules)}
+                    disabled={loading}
+                  />
+                  Include node_modules
+                </label>
+
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={includePackageLock}
+                    onChange={() => setIncludePackageLock(!includePackageLock)}
+                    disabled={loading}
+                  />
+                  Include package-lock.json
+                </label>
+
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={includeBuildFolders}
+                    onChange={() =>
+                      setIncludeBuildFolders(!includeBuildFolders)
+                    }
+                    disabled={loading}
+                  />
+                  Include build folders (build, .next, out)
+                </label>
+
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={includeDistFolders}
+                    onChange={() => setIncludeDistFolders(!includeDistFolders)}
+                    disabled={loading}
+                  />
+                  Include dist folders
+                </label>
+
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={includeCoverage}
+                    onChange={() => setIncludeCoverage(!includeCoverage)}
+                    disabled={loading}
+                  />
+                  Include coverage folders
+                </label>
+              </div>
+            </div>
+
+            {/* Media Files Category */}
+            <div className="exclusion-category">
+              <h5>Media Files</h5>
+              <div className="exclusion-options">
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={includeImgFiles}
+                    onChange={() => setIncludeImgFiles(!includeImgFiles)}
+                    disabled={loading}
+                  />
+                  Include image files (.jpg, .png, etc.)
+                </label>
+
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={includeFavicon}
+                    onChange={() => setIncludeFavicon(!includeFavicon)}
+                    disabled={loading}
+                  />
+                  Include favicon files
+                </label>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1086,23 +1169,6 @@ function FileExplorer() {
           <span className="threshold-value">{fileSizeThreshold} MB</span>
         </div>
 
-        {loading && (
-          <div className="progress-container">
-            <div className="progress-bar">
-              <div
-                className="progress-fill"
-                style={{ width: `${progressPercentage}%` }}
-              ></div>
-            </div>
-            <div className="progress-text">
-              {processedFiles} of {totalFiles} files processed (
-              {progressPercentage}%)
-            </div>
-          </div>
-        )}
-
-        {error && <div className="error-message">{error}</div>}
-
         {!isFileSystemAccessSupported() && (
           <div className="browser-warning">
             ⚠️ Your browser may not support the File System Access API. For the
@@ -1110,7 +1176,100 @@ function FileExplorer() {
             browser.
           </div>
         )}
+
+        {/* Moved the about and feedback buttons to the bottom */}
+        <div className="footer-buttons">
+          <button
+            className="footer-button"
+            onClick={() => setShowAbout(!showAbout)}
+          >
+            About
+          </button>
+          <button
+            className="footer-button"
+            onClick={() => setShowFeedback(!showFeedback)}
+          >
+            Feedback
+          </button>
+        </div>
       </div>
+
+      {/* About panel (now shows at the bottom) */}
+      {showAbout && (
+        <div className="about-panel">
+          <h3>About TxtExtract</h3>
+          <p>
+            TxtExtract helps you extract and document your project's file
+            structure and contents. It runs entirely in your browser - no data
+            is sent to any server.
+          </p>
+          <p>
+            <strong>Perfect for AI tools:</strong> TxtExtract eliminates the
+            need to manually attach multiple files when working with AI
+            assistants. Simply extract your project structure, copy the result,
+            and paste it into your AI conversation for context.
+          </p>
+          <p>
+            <strong>Features:</strong>
+          </p>
+          <ul>
+            <li>Extract complete file structure and contents</li>
+            <li>Control which files and folders to include</li>
+            <li>Download in multiple formats (TXT, MD, HTML, JSON)</li>
+            <li>Search across all files</li>
+            <li>View file statistics and breakdowns</li>
+          </ul>
+          <button className="close-button" onClick={() => setShowAbout(false)}>
+            Close
+          </button>
+        </div>
+      )}
+
+      {/* Feedback panel */}
+      {showFeedback && (
+        <div className="about-panel">
+          <h3>Provide Feedback</h3>
+          <p>
+            We appreciate your feedback to help improve TxtExtract! If you have
+            suggestions or encounter issues, please let us know through one of
+            these channels:
+          </p>
+          <ul>
+            <li>
+              <strong>GitHub Issues:</strong> Open an issue on our{" "}
+              <a
+                href="https://github.com/yourusername/txtextract"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                GitHub repository
+              </a>
+            </li>
+            <li>
+              <strong>Email:</strong> Send feedback to{" "}
+              <a href="mailto:feedback@txtextract.com">
+                feedback@txtextract.com
+              </a>
+            </li>
+            <li>
+              <strong>Twitter:</strong> Tweet us{" "}
+              <a
+                href="https://twitter.com/txtextract"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                @txtextract
+              </a>
+            </li>
+          </ul>
+          <button
+            className="close-button"
+            onClick={() => setShowFeedback(false)}
+          >
+            Close
+          </button>
+        </div>
+      )}
 
       {fileStats.totalFiles > 0 && !loading && (
         <div className="stats-toggle-container">
