@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import "./FileExplorer.css";
+import hljs from "highlight.js";
+import "highlight.js/styles/atom-one-dark.css";
 
 function FileExplorer() {
   const [fileStructure, setFileStructure] = useState("");
@@ -7,11 +9,25 @@ function FileExplorer() {
   const [includeNodeModules, setIncludeNodeModules] = useState(false);
   const [includePackageLock, setIncludePackageLock] = useState(false);
   const [includeFavicon, setIncludeFavicon] = useState(false);
-  const [includeImgFiles, setIncludeImgFiles] = useState(false); // New state for image files
+  const [includeImgFiles, setIncludeImgFiles] = useState(false);
   const [loading, setLoading] = useState(false);
   const [processedFiles, setProcessedFiles] = useState(0);
   const [totalFiles, setTotalFiles] = useState(0);
   const [error, setError] = useState("");
+  const [fileSizeThreshold, setFileSizeThreshold] = useState(1); // Default: 1MB
+  const [exportFormat, setExportFormat] = useState("txt");
+  const [fileStats, setFileStats] = useState({
+    totalFiles: 0,
+    totalSize: 0,
+    fileTypes: {},
+    largestFile: { name: "", size: 0 },
+    smallestFile: { name: "", size: Infinity },
+    averageFileSize: 0,
+  });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [currentResultIndex, setCurrentResultIndex] = useState(-1);
+  const outputRef = useRef(null);
 
   // Check if the File System Access API is supported
   const isFileSystemAccessSupported = () => {
@@ -142,12 +158,105 @@ function FileExplorer() {
     return treeOutput;
   };
 
+  // Function to collect file statistics
+  const collectStatistics = async (dirHandle, path, options) => {
+    const stats = {
+      totalFiles: 0,
+      totalSize: 0,
+      fileTypes: {},
+      largestFile: { name: "", size: 0 },
+      smallestFile: { name: "", size: Infinity },
+    };
+
+    await processDirectoryStats(dirHandle, path, options, stats);
+
+    // Calculate average file size
+    stats.averageFileSize =
+      stats.totalFiles > 0 ? stats.totalSize / stats.totalFiles : 0;
+
+    // Sort file types by count
+    stats.fileTypes = Object.entries(stats.fileTypes)
+      .sort((a, b) => b[1].count - a[1].count)
+      .reduce((acc, [key, value]) => {
+        acc[key] = value;
+        return acc;
+      }, {});
+
+    return stats;
+  };
+
+  // Function to traverse directory and collect stats
+  const processDirectoryStats = async (dirHandle, path, options, stats) => {
+    for await (const [name, handle] of dirHandle) {
+      const newPath = path ? `${path}/${name}` : name;
+
+      // Skip excluded directories
+      if (
+        (!options.includeGit && name === ".git") ||
+        (!options.includeNodeModules && name === "node_modules")
+      ) {
+        continue;
+      }
+
+      if (handle.kind === "directory") {
+        try {
+          await processDirectoryStats(handle, newPath, options, stats);
+        } catch (error) {
+          console.error(`Error accessing directory ${newPath}:`, error);
+        }
+      } else {
+        // Skip excluded files
+        const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
+          name
+        );
+        if (
+          (!options.includePackageLock && name === "package-lock.json") ||
+          (!options.includeFavicon &&
+            (name === "favicon.ico" || name.startsWith("favicon."))) ||
+          (!options.includeImgFiles && isImageFile)
+        ) {
+          continue;
+        }
+
+        try {
+          const file = await handle.getFile();
+
+          // Update file stats
+          stats.totalFiles++;
+          stats.totalSize += file.size;
+
+          // Track largest and smallest files
+          if (file.size > stats.largestFile.size) {
+            stats.largestFile = { name: newPath, size: file.size };
+          }
+          if (file.size < stats.smallestFile.size) {
+            stats.smallestFile = { name: newPath, size: file.size };
+          }
+
+          // Track file types
+          const fileExtension =
+            name.split(".").pop().toLowerCase() || "unknown";
+          if (!stats.fileTypes[fileExtension]) {
+            stats.fileTypes[fileExtension] = { count: 0, size: 0 };
+          }
+          stats.fileTypes[fileExtension].count++;
+          stats.fileTypes[fileExtension].size += file.size;
+        } catch (error) {
+          console.error(`Error reading file ${newPath}:`, error);
+        }
+      }
+    }
+  };
+
   const handleFolderSelect = async () => {
     // Reset states
     setFileStructure("");
     setError("");
     setProcessedFiles(0);
     setTotalFiles(0);
+    setSearchQuery("");
+    setSearchResults([]);
+    setCurrentResultIndex(-1);
 
     try {
       // Check browser compatibility
@@ -167,10 +276,14 @@ function FileExplorer() {
         includeNodeModules,
         includePackageLock,
         includeFavicon,
-        includeImgFiles, // Add new option
+        includeImgFiles,
       };
       const totalFilesCount = await countFiles(dirHandle, options);
       setTotalFiles(totalFilesCount);
+
+      // Collect statistics
+      const stats = await collectStatistics(dirHandle, "", options);
+      setFileStats(stats);
 
       // Process the directory
       const result = await processDirectory(dirHandle, "", options);
@@ -186,7 +299,7 @@ function FileExplorer() {
     }
   };
 
-  // Updated processDirectory function to include the tree view
+  // Updated processDirectory function to include the tree view and syntax highlighting
   const processDirectory = async (dirHandle, path, options) => {
     let output = "";
 
@@ -243,8 +356,8 @@ function FileExplorer() {
           // Get file contents
           const file = await handle.getFile();
 
-          // Skip binary files and very large files
-          if (file.size > 1024 * 1024) {
+          // Skip binary files and very large files based on threshold
+          if (file.size > fileSizeThreshold * 1024 * 1024) {
             output += `\n// File: ${newPath} (skipped - size: ${(
               file.size / 1024
             ).toFixed(2)} KB)\n`;
@@ -271,7 +384,140 @@ function FileExplorer() {
     return output;
   };
 
-  const handleDownload = () => {
+  // Search functionality
+  const handleSearch = () => {
+    if (!searchQuery.trim() || !fileStructure) return;
+
+    const query = searchQuery.toLowerCase();
+    const results = [];
+
+    // Find all occurrences of the search query
+    let index = fileStructure.toLowerCase().indexOf(query);
+    while (index !== -1) {
+      results.push(index);
+      index = fileStructure.toLowerCase().indexOf(query, index + 1);
+    }
+
+    setSearchResults(results);
+    setCurrentResultIndex(results.length > 0 ? 0 : -1);
+
+    // Scroll to the first result if there are any
+    if (results.length > 0 && outputRef.current) {
+      scrollToResult(0);
+    }
+  };
+
+  // Function to navigate between search results
+  const navigateResults = (direction) => {
+    if (searchResults.length === 0) return;
+
+    let newIndex;
+    if (direction === "next") {
+      newIndex = (currentResultIndex + 1) % searchResults.length;
+    } else {
+      newIndex =
+        (currentResultIndex - 1 + searchResults.length) % searchResults.length;
+    }
+
+    setCurrentResultIndex(newIndex);
+    scrollToResult(newIndex);
+  };
+
+  // Function to scroll to a specific result
+  const scrollToResult = (resultIndex) => {
+    if (
+      !outputRef.current ||
+      resultIndex < 0 ||
+      resultIndex >= searchResults.length
+    )
+      return;
+
+    const textContent = fileStructure;
+    const startIndex = searchResults[resultIndex];
+
+    // Calculate the line number by counting newlines before the match
+    const textBeforeMatch = textContent.substring(0, startIndex);
+    const linesBefore = (textBeforeMatch.match(/\n/g) || []).length;
+
+    // Get all lines
+    const lines = textContent.split("\n");
+
+    // Find the line that contains our match
+    let charCount = 0;
+    let targetLine = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (charCount + lines[i].length + 1 > startIndex) {
+        targetLine = i;
+        break;
+      }
+      charCount += lines[i].length + 1; // +1 for the newline character
+    }
+
+    // Calculate scroll position
+    const lineHeight = 18; // Approximate line height in pixels
+    const scrollPosition = targetLine * lineHeight;
+
+    outputRef.current.scrollTop = scrollPosition - 100; // Scroll with some context
+  };
+
+  // Function to highlight search results
+  const highlightSearchResults = (text, query, results, currentIndex) => {
+    if (!query || results.length === 0) return text;
+
+    let highlightedText = "";
+    let lastIndex = 0;
+
+    for (let i = 0; i < results.length; i++) {
+      const startIndex = results[i];
+      const endIndex = startIndex + query.length;
+
+      // Add text before this match
+      highlightedText += text.substring(lastIndex, startIndex);
+
+      // Add the highlighted match
+      if (i === currentIndex) {
+        highlightedText += `<mark class="current-match">${text.substring(
+          startIndex,
+          endIndex
+        )}</mark>`;
+      } else {
+        highlightedText += `<mark>${text.substring(
+          startIndex,
+          endIndex
+        )}</mark>`;
+      }
+
+      lastIndex = endIndex;
+    }
+
+    // Add remaining text
+    highlightedText += text.substring(lastIndex);
+
+    return highlightedText;
+  };
+
+  // Export functions
+  const handleExport = () => {
+    switch (exportFormat) {
+      case "txt":
+        exportAsText();
+        break;
+      case "md":
+        exportAsMarkdown();
+        break;
+      case "html":
+        exportAsHtml();
+        break;
+      case "json":
+        exportAsJson();
+        break;
+      default:
+        exportAsText();
+    }
+  };
+
+  // Text export
+  const exportAsText = () => {
     const blob = new Blob([fileStructure], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -281,6 +527,387 @@ function FileExplorer() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  // Markdown export
+  const exportAsMarkdown = () => {
+    // Convert the output to markdown format
+    let mdContent = "# File Structure\n\n";
+
+    // Get the tree structure part
+    const treeStructureMatch = fileStructure.match(
+      /\/\/ Full Directory Structure:\n([\s\S]*?)\/\/ Detailed File Contents:/
+    );
+    if (treeStructureMatch && treeStructureMatch[1]) {
+      mdContent +=
+        "## Directory Tree\n\n```\n" + treeStructureMatch[1] + "```\n\n";
+    }
+
+    // Add statistics if available
+    if (fileStats.totalFiles > 0) {
+      mdContent += "## Statistics\n\n";
+      mdContent += `- Total Files: ${fileStats.totalFiles}\n`;
+      mdContent += `- Total Size: ${(
+        fileStats.totalSize /
+        (1024 * 1024)
+      ).toFixed(2)} MB\n`;
+      mdContent += `- Average File Size: ${(
+        fileStats.averageFileSize / 1024
+      ).toFixed(2)} KB\n`;
+      mdContent += `- Largest File: ${fileStats.largestFile.name} (${(
+        fileStats.largestFile.size / 1024
+      ).toFixed(2)} KB)\n\n`;
+
+      mdContent += "### File Types\n\n";
+      Object.entries(fileStats.fileTypes)
+        .slice(0, 10)
+        .forEach(([ext, data]) => {
+          mdContent += `- .${ext}: ${data.count} files, ${(
+            data.size / 1024
+          ).toFixed(1)} KB\n`;
+        });
+      mdContent += "\n";
+    }
+
+    // Get file contents and convert them to markdown
+    mdContent += "## File Contents\n\n";
+
+    // Split by file markers
+    const fileRegex =
+      /\/\/ File: (.*)\n([\s\S]*?)(?=\/\/ File:|\/\/ Directory:|$)/g;
+    let match;
+
+    while ((match = fileRegex.exec(fileStructure)) !== null) {
+      const filePath = match[1];
+      const content = match[2].trim();
+
+      // Add file heading
+      mdContent += `### ${filePath}\n\n`;
+
+      // Determine the language for code block based on file extension
+      const extension = filePath.split(".").pop().toLowerCase();
+      const language = getLanguageFromExtension(extension);
+
+      // Add file content as a code block
+      mdContent += "```" + language + "\n" + content + "\n```\n\n";
+    }
+
+    // Export the markdown file
+    const blob = new Blob([mdContent], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "file_structure.md";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // HTML export
+  const exportAsHtml = () => {
+    // Create a styled HTML document
+    let htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Structure</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    pre {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+    .tree {
+      font-family: monospace;
+      white-space: pre;
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 8px;
+    }
+    h1 {
+      color: #2c3e50;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #eaecef;
+    }
+    h2 {
+      color: #2c3e50;
+      margin-top: 30px;
+    }
+    h3 {
+      color: #2c3e50;
+      margin-top: 25px;
+      padding: 5px 10px;
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    .file-container {
+      margin-bottom: 30px;
+    }
+    .file-path {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .directory-path {
+      font-weight: bold;
+      margin: 20px 0 10px;
+      padding: 5px 10px;
+      background: #e0f7fa;
+      border-radius: 4px;
+    }
+    .stats-container {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 10px;
+    }
+    .file-types {
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <h1>File Structure</h1>
+`;
+
+    // Get the tree structure part
+    const treeStructureMatch = fileStructure.match(
+      /\/\/ Full Directory Structure:\n([\s\S]*?)\/\/ Detailed File Contents:/
+    );
+    if (treeStructureMatch && treeStructureMatch[1]) {
+      htmlContent +=
+        "<h2>Directory Tree</h2>\n<div class='tree'>" +
+        treeStructureMatch[1].replace(/</g, "&lt;").replace(/>/g, "&gt;") +
+        "</div>\n";
+    }
+
+    // Add statistics if available
+    if (fileStats.totalFiles > 0) {
+      htmlContent += `
+  <h2>Statistics</h2>
+  <div class="stats-container">
+    <div class="stats-grid">
+      <div>
+        <strong>Total Files:</strong> ${fileStats.totalFiles}
+      </div>
+      <div>
+        <strong>Total Size:</strong> ${(
+          fileStats.totalSize /
+          (1024 * 1024)
+        ).toFixed(2)} MB
+      </div>
+      <div>
+        <strong>Average File Size:</strong> ${(
+          fileStats.averageFileSize / 1024
+        ).toFixed(2)} KB
+      </div>
+      <div>
+        <strong>Largest File:</strong> ${fileStats.largestFile.name} (${(
+        fileStats.largestFile.size / 1024
+      ).toFixed(2)} KB)
+      </div>
+    </div>
+    
+    <div class="file-types">
+      <h3>File Types</h3>
+      <ul>
+`;
+
+      Object.entries(fileStats.fileTypes)
+        .slice(0, 10)
+        .forEach(([ext, data]) => {
+          htmlContent += `        <li><strong>.${ext}:</strong> ${
+            data.count
+          } files, ${(data.size / 1024).toFixed(1)} KB</li>\n`;
+        });
+
+      htmlContent += `      </ul>
+    </div>
+  </div>
+`;
+    }
+
+    // Get file contents and convert them
+    htmlContent += "<h2>File Contents</h2>\n";
+
+    // Split by file and directory markers
+    const contentRegex =
+      /\/\/ (File|Directory): (.*)\n([\s\S]*?)(?=\/\/ (File|Directory):|$)/g;
+    let match;
+
+    while ((match = contentRegex.exec(fileStructure)) !== null) {
+      const type = match[1]; // File or Directory
+      const path = match[2];
+      const content = match[3].trim();
+
+      if (type === "File") {
+        // Determine the language for highlighting based on file extension
+        const extension = path.split(".").pop().toLowerCase();
+        const language = getLanguageFromExtension(extension);
+
+        htmlContent += `
+  <div class="file-container">
+    <h3>${path}</h3>
+    <pre><code class="language-${language}">${content
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")}</code></pre>
+  </div>
+`;
+      } else if (type === "Directory") {
+        htmlContent += `
+  <div class="directory-path">${path}</div>
+`;
+      }
+    }
+
+    // Close the HTML document
+    htmlContent += `
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('pre code').forEach((block) => {
+        hljs.highlightElement(block);
+      });
+    });
+  </script>
+</body>
+</html>
+`;
+
+    // Export the HTML file
+    const blob = new Blob([htmlContent], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "file_structure.html";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // JSON export
+  const exportAsJson = () => {
+    // Parse the file structure into a JSON object
+    const jsonStructure = {
+      tree: {},
+      files: {},
+      stats: fileStats,
+    };
+
+    // Get the tree structure
+    const treeStructureMatch = fileStructure.match(
+      /\/\/ Full Directory Structure:\n([\s\S]*?)\/\/ Detailed File Contents:/
+    );
+    if (treeStructureMatch && treeStructureMatch[1]) {
+      jsonStructure.treeText = treeStructureMatch[1].trim();
+    }
+
+    // Build structured tree and files data
+    const fileRegex =
+      /\/\/ File: (.*)\n([\s\S]*?)(?=\/\/ File:|\/\/ Directory:|$)/g;
+    let match;
+
+    // Find all files and their content
+    while ((match = fileRegex.exec(fileStructure)) !== null) {
+      const filePath = match[1];
+      const content = match[2].trim();
+
+      // Add to files object
+      jsonStructure.files[filePath] = {
+        path: filePath,
+        content: content,
+        extension: filePath.split(".").pop().toLowerCase(),
+      };
+
+      // Add to tree structure
+      const pathParts = filePath.split("/");
+      let currentLevel = jsonStructure.tree;
+
+      for (let i = 0; i < pathParts.length; i++) {
+        const part = pathParts[i];
+        if (i === pathParts.length - 1) {
+          // This is a file
+          currentLevel[part] = {
+            type: "file",
+            path: filePath,
+          };
+        } else {
+          // This is a directory
+          if (!currentLevel[part]) {
+            currentLevel[part] = {
+              type: "directory",
+              children: {},
+            };
+          }
+          currentLevel = currentLevel[part].children;
+        }
+      }
+    }
+
+    // Export the JSON file
+    const blob = new Blob([JSON.stringify(jsonStructure, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "file_structure.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Helper function to determine language for code highlighting
+  const getLanguageFromExtension = (extension) => {
+    const languageMap = {
+      js: "javascript",
+      jsx: "javascript",
+      ts: "typescript",
+      tsx: "typescript",
+      html: "html",
+      css: "css",
+      scss: "scss",
+      less: "less",
+      json: "json",
+      md: "markdown",
+      py: "python",
+      java: "java",
+      c: "c",
+      cpp: "cpp",
+      cs: "csharp",
+      go: "go",
+      rb: "ruby",
+      php: "php",
+      sh: "bash",
+      yaml: "yaml",
+      yml: "yaml",
+      xml: "xml",
+      sql: "sql",
+      swift: "swift",
+      kt: "kotlin",
+      rs: "rust",
+    };
+
+    return languageMap[extension] || "plaintext";
   };
 
   // Calculate progress percentage
@@ -350,6 +977,24 @@ function FileExplorer() {
           </label>
         </div>
 
+        <div className="threshold-container">
+          <label htmlFor="fileThreshold" className="threshold-label">
+            Max file size (MB):
+          </label>
+          <input
+            id="fileThreshold"
+            type="range"
+            min="0.1"
+            max="10"
+            step="0.1"
+            value={fileSizeThreshold}
+            onChange={(e) => setFileSizeThreshold(parseFloat(e.target.value))}
+            disabled={loading}
+            className="threshold-slider"
+          />
+          <span className="threshold-value">{fileSizeThreshold} MB</span>
+        </div>
+
         {loading && (
           <div className="progress-container">
             <div className="progress-bar">
@@ -376,16 +1021,134 @@ function FileExplorer() {
         )}
       </div>
 
+      {fileStats.totalFiles > 0 && !loading && (
+        <div className="stats-container">
+          <h3>Project Statistics</h3>
+
+          <div className="stats-grid">
+            <div className="stat-item">
+              <span className="stat-label">Total Files:</span>
+              <span className="stat-value">
+                {fileStats.totalFiles.toLocaleString()}
+              </span>
+            </div>
+
+            <div className="stat-item">
+              <span className="stat-label">Total Size:</span>
+              <span className="stat-value">
+                {(fileStats.totalSize / (1024 * 1024)).toFixed(2)} MB
+              </span>
+            </div>
+
+            <div className="stat-item">
+              <span className="stat-label">Average File Size:</span>
+              <span className="stat-value">
+                {(fileStats.averageFileSize / 1024).toFixed(2)} KB
+              </span>
+            </div>
+
+            <div className="stat-item">
+              <span className="stat-label">Largest File:</span>
+              <span className="stat-value">
+                {fileStats.largestFile.name} (
+                {(fileStats.largestFile.size / 1024).toFixed(2)} KB)
+              </span>
+            </div>
+          </div>
+
+          <h4>File Types</h4>
+          <div className="file-types-grid">
+            {Object.entries(fileStats.fileTypes)
+              .slice(0, 10)
+              .map(([ext, data]) => (
+                <div key={ext} className="file-type-item">
+                  <div className="file-type-name">.{ext}</div>
+                  <div className="file-type-count">{data.count} files</div>
+                  <div className="file-type-size">
+                    {(data.size / 1024).toFixed(1)} KB
+                  </div>
+                  <div
+                    className="file-type-bar"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        (data.count / fileStats.totalFiles) * 300
+                      )}%`,
+                      backgroundColor: `hsl(${
+                        ext
+                          .split("")
+                          .reduce((sum, char) => sum + char.charCodeAt(0), 0) %
+                        360
+                      }, 70%, 60%)`,
+                    }}
+                  ></div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
       {fileStructure && (
         <div className="result-container">
           <div className="result-header">
             <h2>Extracted File Structure</h2>
-            <button className="download-button" onClick={handleDownload}>
-              Download as Text File
-            </button>
+
+            <div className="search-container">
+              <input
+                type="text"
+                placeholder="Search in files..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                className="search-input"
+              />
+              <button className="search-button" onClick={handleSearch}>
+                Search
+              </button>
+              {searchResults.length > 0 && (
+                <div className="search-navigation">
+                  <button onClick={() => navigateResults("prev")}>↑</button>
+                  <span>
+                    {currentResultIndex + 1} of {searchResults.length}
+                  </span>
+                  <button onClick={() => navigateResults("next")}>↓</button>
+                </div>
+              )}
+            </div>
+
+            <div className="export-controls">
+              <select
+                className="format-select"
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value)}
+              >
+                <option value="txt">Text (.txt)</option>
+                <option value="md">Markdown (.md)</option>
+                <option value="html">HTML (.html)</option>
+                <option value="json">JSON (.json)</option>
+              </select>
+
+              <button className="download-button" onClick={handleExport}>
+                Download File
+              </button>
+            </div>
           </div>
 
-          <pre className="output">{fileStructure}</pre>
+          <pre
+            className="output"
+            ref={outputRef}
+            dangerouslySetInnerHTML={{
+              __html:
+                fileStructure && searchQuery && searchResults.length > 0
+                  ? highlightSearchResults(
+                      fileStructure,
+                      searchQuery,
+                      searchResults,
+                      currentResultIndex
+                    )
+                  : fileStructure,
+            }}
+          ></pre>
         </div>
       )}
     </div>
