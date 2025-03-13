@@ -7,7 +7,7 @@
 }
 
 .App-header {
-  padding: 2rem 1rem;
+  padding: 4rem 1rem 2rem 1rem; /* Increased top padding from 2rem to 4rem */
   display: flex;
   align-items: center;
   justify-content: space-between;
