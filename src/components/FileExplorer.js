@@ -9,7 +9,6 @@ const FileIcon = () => <span className="file-icon">📄</span>;
 const ChevronRight = () => <span>▶</span>;
 
 // Custom folder tree component for specific file/folder exclusion
-// Custom folder tree component for specific file/folder exclusion
 const FolderTree = ({
   structure,
   exclusions,
@@ -199,6 +198,7 @@ function FileExplorer() {
   const [includeDistFolders, setIncludeDistFolders] = useState(false);
   const [includeCoverage, setIncludeCoverage] = useState(false);
   const [includeLogFiles, setIncludeLogFiles] = useState(false);
+  const [includePdfFiles, setIncludePdfFiles] = useState(false); // New state for PDF files
 
   // Stats and UI states
   const [showStatistics, setShowStatistics] = useState(false);
@@ -325,12 +325,14 @@ function FileExplorer() {
             name
           );
           const isLogFile = /\.(log|logs)$/i.test(name);
+          const isPdfFile = /\.pdf$/i.test(name); // Add PDF check
 
           if (
             (!options.includePackageLock && name === "package-lock.json") ||
             (!options.includeFavicon &&
               (name === "favicon.ico" || name.startsWith("favicon."))) ||
             (!options.includeImgFiles && isImageFile) ||
+            (!options.includePdfFiles && isPdfFile) || // Add PDF exclusion
             (!options.includeLogFiles && isLogFile)
           ) {
             continue;
@@ -413,6 +415,7 @@ function FileExplorer() {
               (name === "favicon.ico" || name.startsWith("favicon."))) ||
             (!options.includeImgFiles &&
               /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(name)) ||
+            (!options.includePdfFiles && /\.pdf$/i.test(name)) || // Add PDF exclusion
             (!options.includeLogFiles && /\.(log|logs)$/i.test(name))));
 
       // Check if custom excluded
@@ -532,12 +535,14 @@ function FileExplorer() {
             name
           );
           const isLogFile = /\.(log|logs)$/i.test(name);
+          const isPdfFile = /\.pdf$/i.test(name); // Add PDF check
 
           if (
             (!options.includePackageLock && name === "package-lock.json") ||
             (!options.includeFavicon &&
               (name === "favicon.ico" || name.startsWith("favicon."))) ||
             (!options.includeImgFiles && isImageFile) ||
+            (!options.includePdfFiles && isPdfFile) || // Add PDF exclusion
             (!options.includeLogFiles && isLogFile)
           ) {
             continue;
@@ -625,12 +630,14 @@ function FileExplorer() {
             name
           );
           const isLogFile = /\.(log|logs)$/i.test(name);
+          const isPdfFile = /\.pdf$/i.test(name); // Add PDF check
 
           if (
             (!options.includePackageLock && name === "package-lock.json") ||
             (!options.includeFavicon &&
               (name === "favicon.ico" || name.startsWith("favicon."))) ||
             (!options.includeImgFiles && isImageFile) ||
+            (!options.includePdfFiles && isPdfFile) || // Add PDF exclusion
             (!options.includeLogFiles && isLogFile)
           ) {
             continue;
@@ -856,6 +863,7 @@ function FileExplorer() {
         includeDistFolders,
         includeCoverage,
         includeLogFiles,
+        includePdfFiles, // Add PDF option
         customExclusions: [],
       };
 
@@ -925,6 +933,7 @@ function FileExplorer() {
         includeDistFolders,
         includeCoverage,
         includeLogFiles,
+        includePdfFiles, // Add PDF option
         customExclusions,
       };
       const totalFilesCount = await countFiles(selectedDirHandle, options);
@@ -989,12 +998,14 @@ function FileExplorer() {
             name
           );
           const isLogFile = /\.(log|logs)$/i.test(name);
+          const isPdfFile = /\.pdf$/i.test(name); // Add PDF check
 
           if (
             (!options.includePackageLock && name === "package-lock.json") ||
             (!options.includeFavicon &&
               (name === "favicon.ico" || name.startsWith("favicon."))) ||
             (!options.includeImgFiles && isImageFile) ||
+            (!options.includePdfFiles && isPdfFile) || // Add PDF exclusion
             (!options.includeLogFiles && isLogFile)
           ) {
             continue;
@@ -1851,6 +1862,16 @@ function FileExplorer() {
                       disabled={loading}
                     />
                     Include image files (.jpg, .png, etc.)
+                  </label>
+
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={includePdfFiles}
+                      onChange={() => setIncludePdfFiles(!includePdfFiles)}
+                      disabled={loading}
+                    />
+                    Include PDF files
                   </label>
 
                   <label className="checkbox">
