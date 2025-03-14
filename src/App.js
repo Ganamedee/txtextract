@@ -52,9 +52,10 @@ function App() {
   const aboutRef = useRef(null);
   const feedbackRef = useRef(null);
 
-  // Toggle functions for about and feedback panels with animations
+  // Improved toggle functions for about and feedback panels with proper animations
   const toggleAbout = () => {
     if (showFeedback) {
+      // First close feedback then open about
       setClosingFeedback(true);
       setTimeout(() => {
         setShowFeedback(false);
@@ -62,18 +63,22 @@ function App() {
         setShowAbout(true);
       }, 300); // Match animation duration
     } else if (showAbout) {
+      // Close the about panel with animation
       setClosingAbout(true);
       setTimeout(() => {
         setShowAbout(false);
         setClosingAbout(false);
       }, 300); // Match animation duration
     } else {
+      // Open the about panel
       setShowAbout(true);
+      setClosingAbout(false);
     }
   };
 
   const toggleFeedback = () => {
     if (showAbout) {
+      // First close about then open feedback
       setClosingAbout(true);
       setTimeout(() => {
         setShowAbout(false);
@@ -81,13 +86,16 @@ function App() {
         setShowFeedback(true);
       }, 300); // Match animation duration
     } else if (showFeedback) {
+      // Close the feedback panel with animation
       setClosingFeedback(true);
       setTimeout(() => {
         setShowFeedback(false);
         setClosingFeedback(false);
       }, 300); // Match animation duration
     } else {
+      // Open the feedback panel
       setShowFeedback(true);
+      setClosingFeedback(false);
     }
   };
 
@@ -149,8 +157,12 @@ function App() {
         </div>
       </header>
 
-      {/* About panel with enhanced animation */}
-      <div className={`info-panel global-panel ${showAbout ? "show" : ""}`}>
+      {/* About panel with improved animation */}
+      <div
+        className={`info-panel global-panel ${showAbout ? "show" : ""} ${
+          closingAbout ? "closing" : ""
+        }`}
+      >
         {(showAbout || closingAbout) && (
           <div
             ref={aboutRef}
@@ -185,8 +197,12 @@ function App() {
         )}
       </div>
 
-      {/* Feedback panel with enhanced animation */}
-      <div className={`info-panel global-panel ${showFeedback ? "show" : ""}`}>
+      {/* Feedback panel with improved animation */}
+      <div
+        className={`info-panel global-panel ${showFeedback ? "show" : ""} ${
+          closingFeedback ? "closing" : ""
+        }`}
+      >
         {(showFeedback || closingFeedback) && (
           <div
             ref={feedbackRef}

@@ -3,6 +3,76 @@ import "./FileExplorer.css";
 import hljs from "highlight.js";
 import "highlight.js/styles/atom-one-dark.css";
 
+// Icon components for folder tree
+const FolderIcon = () => <span className="folder-icon">📁</span>;
+const FileIcon = () => <span className="file-icon">📄</span>;
+const ChevronRight = () => <span>▶</span>;
+
+// Custom folder tree component for specific file/folder exclusion
+const FolderTree = ({
+  structure,
+  exclusions,
+  onToggleExclusion,
+  expandedFolders,
+  onToggleFolder,
+}) => {
+  const renderTree = (node, path = "", level = 0) => {
+    if (!node) return null;
+
+    return Object.entries(node).map(([name, item]) => {
+      const currentPath = path ? `${path}/${name}` : name;
+      const isFolder = item.type === "directory";
+      const isExpanded = isFolder && expandedFolders.includes(currentPath);
+
+      return (
+        <div key={currentPath}>
+          <div
+            className={`folder-item ${level > 0 ? "folder-item-indent" : ""}`}
+            style={{ paddingLeft: `${level * 0.75}rem` }}
+          >
+            {isFolder && (
+              <span
+                className={`folder-item-toggle ${isExpanded ? "expanded" : ""}`}
+                onClick={() => onToggleFolder(currentPath)}
+              >
+                <ChevronRight />
+              </span>
+            )}
+            {isFolder ? <FolderIcon /> : <FileIcon />}
+            <span
+              className="folder-item-name"
+              onClick={() => isFolder && onToggleFolder(currentPath)}
+            >
+              {name}
+            </span>
+            <input
+              type="checkbox"
+              className="folder-item-checkbox"
+              checked={!exclusions.includes(currentPath)}
+              onChange={() => onToggleExclusion(currentPath)}
+            />
+          </div>
+          {isFolder && isExpanded && item.children && (
+            <div className="folder-item-children">
+              {renderTree(item.children, currentPath, level + 1)}
+            </div>
+          )}
+        </div>
+      );
+    });
+  };
+
+  return (
+    <div className="folder-tree">
+      {structure && Object.keys(structure).length > 0 ? (
+        renderTree(structure)
+      ) : (
+        <div className="folder-tree-empty">No files or folders to display</div>
+      )}
+    </div>
+  );
+};
+
 function FileExplorer() {
   const [fileStructure, setFileStructure] = useState("");
 
@@ -18,15 +88,24 @@ function FileExplorer() {
   const [includeCoverage, setIncludeCoverage] = useState(false);
   const [includeLogFiles, setIncludeLogFiles] = useState(false);
 
+  // Stats and UI states
   const [showStatistics, setShowStatistics] = useState(false);
+  const [hidingStatistics, setHidingStatistics] = useState(false);
   const [loading, setLoading] = useState(false);
   const [processedFiles, setProcessedFiles] = useState(0);
   const [totalFiles, setTotalFiles] = useState(0);
   const [error, setError] = useState("");
-  const [fileSizeThreshold, setFileSizeThreshold] = useState(1); // Default: 1MB
   const [exportFormat, setExportFormat] = useState("txt");
   const [folderName, setFolderName] = useState("");
-  const [showExclusions, setShowExclusions] = useState(false); // New state to toggle exclusion options
+  const [showExclusions, setShowExclusions] = useState(false);
+
+  // NEW: Custom folder/file exclusion states
+  const [folderStructure, setFolderStructure] = useState({});
+  const [customExclusions, setCustomExclusions] = useState([]);
+  const [showCustomExclusions, setShowCustomExclusions] = useState(false);
+  const [expandedFolders, setExpandedFolders] = useState([]);
+  const [selectedDirHandle, setSelectedDirHandle] = useState(null);
+
   const [fileStats, setFileStats] = useState({
     totalFiles: 0,
     totalSize: 0,
@@ -38,9 +117,13 @@ function FileExplorer() {
     totalCharacters: 0,
     totalWords: 0,
   });
+
+  // Search states
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [currentResultIndex, setCurrentResultIndex] = useState(-1);
+
+  // Refs
   const outputRef = useRef(null);
   const exclusionsRef = useRef(null);
 
@@ -54,6 +137,20 @@ function FileExplorer() {
       }
     }
   }, [showExclusions]);
+
+  // Handle statistics toggle with proper animation
+  const toggleStatistics = () => {
+    if (showStatistics) {
+      setHidingStatistics(true);
+      setTimeout(() => {
+        setShowStatistics(false);
+        setHidingStatistics(false);
+      }, 500); // Match the CSS animation duration
+    } else {
+      setShowStatistics(true);
+      setHidingStatistics(false);
+    }
+  };
 
   // Check if the File System Access API is supported
   const isFileSystemAccessSupported = () => {
@@ -78,6 +175,14 @@ function FileExplorer() {
         continue;
       }
 
+      // Skip custom excluded paths
+      const currentPath = options.currentPath
+        ? `${options.currentPath}/${name}`
+        : name;
+      if (options.customExclusions.includes(currentPath)) {
+        continue;
+      }
+
       // Skip excluded files
       if (handle.kind === "file") {
         const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
@@ -98,7 +203,12 @@ function FileExplorer() {
 
       if (handle.kind === "directory") {
         try {
-          count += await countFiles(handle, options);
+          // Pass the current path to build the full path for children
+          const newOptions = {
+            ...options,
+            currentPath: currentPath,
+          };
+          count += await countFiles(handle, newOptions);
         } catch (error) {
           console.error(`Error counting files in directory ${name}:`, error);
         }
@@ -134,6 +244,12 @@ function FileExplorer() {
         (!options.includeCoverage && name === "coverage") ||
         (!options.includeDSStore && name === ".DS_Store")
       ) {
+        continue;
+      }
+
+      // Skip custom excluded paths
+      const currentPath = path ? `${path}/${name}` : name;
+      if (options.customExclusions.includes(currentPath)) {
         continue;
       }
 
@@ -256,6 +372,11 @@ function FileExplorer() {
         continue;
       }
 
+      // Skip custom excluded paths
+      if (options.customExclusions.includes(newPath)) {
+        continue;
+      }
+
       if (handle.kind === "directory") {
         try {
           await processDirectoryStats(handle, newPath, options, stats);
@@ -304,8 +425,8 @@ function FileExplorer() {
           stats.fileTypes[fileExtension].size += file.size;
 
           // Get text content to count lines, characters, and words
-          // Skip binary files and very large files
-          if (file.size <= fileSizeThreshold * 1024 * 1024) {
+          // Only process files under 5MB for text analysis
+          if (file.size <= 5 * 1024 * 1024) {
             try {
               const text = await file.text();
               const lines = text.split("\n").length;
@@ -329,6 +450,39 @@ function FileExplorer() {
     }
   };
 
+  // NEW: Function to build folder structure for custom exclusion UI
+  const buildFolderStructure = async (dirHandle, path = "") => {
+    const structure = {};
+
+    for await (const [name, handle] of dirHandle) {
+      const newPath = path ? `${path}/${name}` : name;
+
+      if (handle.kind === "directory") {
+        try {
+          const children = await buildFolderStructure(handle, newPath);
+          structure[name] = {
+            type: "directory",
+            children: children,
+          };
+        } catch (error) {
+          console.error(`Error accessing directory ${newPath}:`, error);
+          structure[name] = {
+            type: "directory",
+            children: {},
+            error: error.message,
+          };
+        }
+      } else {
+        structure[name] = {
+          type: "file",
+          path: newPath,
+        };
+      }
+    }
+
+    return structure;
+  };
+
   // Helper function to escape HTML
   const escapeHtml = (unsafe) => {
     return unsafe
@@ -337,6 +491,28 @@ function FileExplorer() {
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
+  };
+
+  // NEW: Toggle function for custom exclusion
+  const toggleCustomExclusion = (path) => {
+    setCustomExclusions((prev) => {
+      if (prev.includes(path)) {
+        return prev.filter((item) => item !== path);
+      } else {
+        return [...prev, path];
+      }
+    });
+  };
+
+  // NEW: Toggle function for expanding folders in the tree view
+  const toggleFolder = (path) => {
+    setExpandedFolders((prev) => {
+      if (prev.includes(path)) {
+        return prev.filter((item) => item !== path);
+      } else {
+        return [...prev, path];
+      }
+    });
   };
 
   const handleFolderSelect = async () => {
@@ -348,6 +524,9 @@ function FileExplorer() {
     setSearchQuery("");
     setSearchResults([]);
     setCurrentResultIndex(-1);
+    setFolderStructure({});
+    setCustomExclusions([]);
+    setExpandedFolders([]);
 
     try {
       // Check browser compatibility
@@ -359,12 +538,44 @@ function FileExplorer() {
 
       // Request access to a directory
       const dirHandle = await window.showDirectoryPicker();
+      setSelectedDirHandle(dirHandle);
 
       // Save folder name for download
       setFolderName(dirHandle.name);
 
-      setLoading(true);
+      // Build folder structure for custom exclusion
+      const structure = await buildFolderStructure(dirHandle);
+      setFolderStructure(structure);
+      setShowCustomExclusions(true);
 
+      // Show the first level of folders expanded by default
+      const firstLevelFolders = Object.keys(structure)
+        .filter((key) => structure[key].type === "directory")
+        .map((key) => key);
+      setExpandedFolders(firstLevelFolders);
+    } catch (error) {
+      console.error("Error selecting folder:", error);
+      setError(
+        error.message || "An error occurred while selecting the folder."
+      );
+    }
+  };
+
+  // NEW: Process the selected folder with current options and exclusions
+  const processSelectedFolder = async () => {
+    if (!selectedDirHandle) {
+      setError("Please select a folder first.");
+      return;
+    }
+
+    setLoading(true);
+    setFileStructure("");
+    setError("");
+    setProcessedFiles(0);
+    setTotalFiles(0);
+    setShowCustomExclusions(false);
+
+    try {
       // Count total files for progress tracking
       const options = {
         includeGit,
@@ -377,22 +588,22 @@ function FileExplorer() {
         includeDistFolders,
         includeCoverage,
         includeLogFiles,
+        customExclusions,
       };
-      const totalFilesCount = await countFiles(dirHandle, options);
+      const totalFilesCount = await countFiles(selectedDirHandle, options);
       setTotalFiles(totalFilesCount);
 
       // Collect statistics
-      const stats = await collectStatistics(dirHandle, "", options);
+      const stats = await collectStatistics(selectedDirHandle, "", options);
       setFileStats(stats);
 
       // Process the directory
-      const result = await processDirectory(dirHandle, "", options);
-
+      const result = await processDirectory(selectedDirHandle, "", options);
       setFileStructure(result);
     } catch (error) {
-      console.error("Error selecting folder:", error);
+      console.error("Error processing folder:", error);
       setError(
-        error.message || "An error occurred while selecting the folder."
+        error.message || "An error occurred while processing the folder."
       );
     } finally {
       setLoading(false);
@@ -423,6 +634,11 @@ function FileExplorer() {
         (!options.includeCoverage && name === "coverage") ||
         (!options.includeDSStore && name === ".DS_Store")
       ) {
+        continue;
+      }
+
+      // Skip custom excluded paths
+      if (options.customExclusions.includes(newPath)) {
         continue;
       }
 
@@ -464,8 +680,8 @@ function FileExplorer() {
           // Get file contents
           const file = await handle.getFile();
 
-          // Skip binary files and very large files based on threshold
-          if (file.size > fileSizeThreshold * 1024 * 1024) {
+          // Skip very large files (greater than 5MB)
+          if (file.size > 5 * 1024 * 1024) {
             output += `\n// File: ${newPath} (skipped - size: ${(
               file.size / 1024
             ).toFixed(2)} KB)\n`;
@@ -1081,6 +1297,26 @@ function FileExplorer() {
 
         {error && <div className="error-message">{error}</div>}
 
+        {/* Show custom exclusion panel when a folder is selected */}
+        {showCustomExclusions && (
+          <div className="custom-exclusion-container">
+            <div className="custom-exclusion-title">
+              <span>Select files and folders to include</span>
+              <button onClick={processSelectedFolder}>Process Selected</button>
+            </div>
+            <FolderTree
+              structure={folderStructure}
+              exclusions={customExclusions}
+              onToggleExclusion={toggleCustomExclusion}
+              expandedFolders={expandedFolders}
+              onToggleFolder={toggleFolder}
+            />
+            <div className="custom-exclusion-help">
+              Check the boxes to include files/folders, uncheck to exclude them.
+            </div>
+          </div>
+        )}
+
         {/* Toggle button for exclusions */}
         <div className="options-toggle">
           <button
@@ -1236,24 +1472,6 @@ function FileExplorer() {
           </div>
         </div>
 
-        <div className="threshold-container">
-          <label htmlFor="fileThreshold" className="threshold-label">
-            Max file size (MB):
-          </label>
-          <input
-            id="fileThreshold"
-            type="range"
-            min="0.1"
-            max="10"
-            step="0.1"
-            value={fileSizeThreshold}
-            onChange={(e) => setFileSizeThreshold(parseFloat(e.target.value))}
-            disabled={loading}
-            className="threshold-slider"
-          />
-          <span className="threshold-value">{fileSizeThreshold} MB</span>
-        </div>
-
         {!isFileSystemAccessSupported() && (
           <div className="browser-warning">
             ⚠️ Your browser may not support the File System Access API. For the
@@ -1267,7 +1485,7 @@ function FileExplorer() {
         <div className="stats-toggle-container">
           <button
             className={`stats-toggle-button ${showStatistics ? "active" : ""}`}
-            onClick={() => setShowStatistics(!showStatistics)}
+            onClick={toggleStatistics}
           >
             <span className="toggle-icon">{showStatistics ? "−" : "+"}</span>
             {showStatistics ? "Hide Statistics" : "Show Statistics"}
@@ -1275,7 +1493,11 @@ function FileExplorer() {
         </div>
       )}
 
-      <div className={`stats-container ${showStatistics ? "show" : ""}`}>
+      <div
+        className={`stats-container ${showStatistics ? "show" : ""} ${
+          hidingStatistics ? "hiding" : ""
+        }`}
+      >
         <div className="stats-content">
           {fileStats.totalFiles > 0 && !loading && (
             <>

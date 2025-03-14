@@ -7,7 +7,7 @@
 }
 
 .App-header {
-  padding: 7rem 1rem 2rem 1rem; /* Increased top padding from 2rem to 4rem */
+  padding: 7rem 1rem 2rem 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -72,14 +72,15 @@
   text-decoration: underline;
 }
 
-/* Top Navigation */
+/* Top Navigation - UPDATED: positioned at the very top right */
 .top-nav {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-left: auto; /* Push navigation to the right */
-  position: relative;
-  z-index: 1; /* Ensure buttons remain clickable */
+  z-index: 100; /* Ensure buttons remain above other content */
 }
 
 .nav-button {
@@ -139,7 +140,7 @@
 
 /* Global panels for About and Feedback (shown from top navigation) */
 .global-panel {
-  position: absolute;
+  position: fixed;
   width: 100%;
   max-width: 800px;
   max-height: 0;
@@ -164,6 +165,17 @@
   animation: fadeIn 0.3s ease-in-out;
 }
 
+/* FIXED: Improved animation for closing panels */
+.global-panel.closing {
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.5s ease-in-out, opacity 0.3s ease;
+}
+
+.global-panel .about-panel.closing {
+  animation: fadeOut 0.3s ease-in-out;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -175,6 +187,44 @@
   }
 }
 
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+/* Darkened overlay for about and feedback panels */
+.global-panel::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6); /* Darker background overlay */
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.global-panel.show::before {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.global-panel .about-panel {
+  background: rgba(20, 20, 30, 0.9); /* Darker panel background */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Responsive adjustments */
 @media (max-width: 768px) {
   .App-header {
     flex-direction: column;
@@ -196,7 +246,10 @@
   }
 
   .top-nav {
-    width: 100%;
-    justify-content: center;
+    position: fixed;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: auto;
+    justify-content: flex-end;
   }
 }
