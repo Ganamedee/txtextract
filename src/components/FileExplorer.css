@@ -881,7 +881,25 @@ mark.current-match {
   border: 1px solid var(--color-panel-border);
   display: flex;
   flex-direction: column;
-  animation: fadeIn 0.3s ease-in-out;
+  /* Animations for smooth opening */
+  opacity: 0;
+  transform: translateY(-20px);
+  max-height: 0;
+  transition: all 0.3s ease-in-out;
+  animation: slideInPanel 0.4s ease forwards;
+}
+
+@keyframes slideInPanel {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 2000px;
+  }
 }
 
 .custom-exclusion-title {
@@ -913,6 +931,43 @@ mark.current-match {
 .action-button:hover {
   background: var(--color-button-hover);
   transform: translateY(-2px);
+}
+
+/* Added folder search feature */
+.folder-search-container {
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.folder-search-input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--color-panel-border);
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.folder-search-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-button-primary);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+/* Highlight text in search results */
+.highlight-text {
+  background-color: rgba(255, 166, 0, 0.2);
+  color: var(--color-text-primary);
+  border-radius: 2px;
+  padding: 0 2px;
+  font-weight: bold;
+}
+
+/* Highlight rows that match search */
+.search-match {
+  background-color: rgba(255, 166, 0, 0.05);
 }
 
 .folder-tree {
@@ -1000,6 +1055,26 @@ mark.current-match {
 
 .folder-item-toggle.expanded {
   transform: rotate(90deg);
+}
+
+/* Improved animation for folder expansion */
+.folder-item-children {
+  overflow: hidden;
+  max-height: 0;
+  max-height: 1000px; /* Adjusted for animation */
+  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+  animation: expandFolder 0.3s ease-in-out forwards;
+}
+
+@keyframes expandFolder {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .folder-icon,
