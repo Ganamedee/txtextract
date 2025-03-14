@@ -9,6 +9,7 @@ const FileIcon = () => <span className="file-icon">📄</span>;
 const ChevronRight = () => <span>▶</span>;
 
 // Custom folder tree component for specific file/folder exclusion
+// Custom folder tree component for specific file/folder exclusion
 const FolderTree = ({
   structure,
   exclusions,
@@ -17,38 +18,7 @@ const FolderTree = ({
   onToggleFolder,
   searchTerm = "",
 }) => {
-  if (!structure || Object.keys(structure).length === 0) {
-    return (
-      <div className="folder-tree-empty">No files or folders to display</div>
-    );
-  }
-
-  // Check if node or any of its children match the search term
-  const nodeMatchesSearch = (node, nodeName, path) => {
-    if (!searchTerm) return true;
-
-    const searchLower = searchTerm.toLowerCase();
-    const currentPath = path ? `${path}/${nodeName}` : nodeName;
-
-    // Check if current node matches
-    if (
-      nodeName.toLowerCase().includes(searchLower) ||
-      currentPath.toLowerCase().includes(searchLower)
-    ) {
-      return true;
-    }
-
-    // Check if any children match (for directories)
-    if (node.type === "directory" && node.children) {
-      return Object.entries(node.children).some(([childName, childNode]) =>
-        nodeMatchesSearch(childNode, childName, currentPath)
-      );
-    }
-
-    return false;
-  };
-
-  // Auto-expand parents of matching nodes when searching
+  // Move useEffect hook before any conditional returns
   useEffect(() => {
     if (searchTerm && onToggleFolder) {
       const pathsToExpand = [];
@@ -95,16 +65,49 @@ const FolderTree = ({
         });
       };
 
-      findMatchingPaths(structure);
+      if (structure) {
+        findMatchingPaths(structure);
 
-      // Add to expanded folders
-      if (pathsToExpand.length > 0) {
-        // Remove duplicates before adding
-        const uniquePaths = [...new Set(pathsToExpand)];
-        onToggleFolder("", uniquePaths);
+        // Add to expanded folders
+        if (pathsToExpand.length > 0) {
+          // Remove duplicates before adding
+          const uniquePaths = [...new Set(pathsToExpand)];
+          onToggleFolder("", uniquePaths);
+        }
       }
     }
   }, [searchTerm, structure, onToggleFolder]);
+
+  if (!structure || Object.keys(structure).length === 0) {
+    return (
+      <div className="folder-tree-empty">No files or folders to display</div>
+    );
+  }
+
+  // Check if node or any of its children match the search term
+  const nodeMatchesSearch = (node, nodeName, path) => {
+    if (!searchTerm) return true;
+
+    const searchLower = searchTerm.toLowerCase();
+    const currentPath = path ? `${path}/${nodeName}` : nodeName;
+
+    // Check if current node matches
+    if (
+      nodeName.toLowerCase().includes(searchLower) ||
+      currentPath.toLowerCase().includes(searchLower)
+    ) {
+      return true;
+    }
+
+    // Check if any children match (for directories)
+    if (node.type === "directory" && node.children) {
+      return Object.entries(node.children).some(([childName, childNode]) =>
+        nodeMatchesSearch(childNode, childName, currentPath)
+      );
+    }
+
+    return false;
+  };
 
   const renderTree = (node, path = "", level = 0) => {
     if (!node) return null;
