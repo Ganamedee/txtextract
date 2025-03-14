@@ -950,10 +950,20 @@ mark.current-match {
   transition: all 0.3s ease;
 }
 
+[data-theme="light"] .folder-search-input {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--color-input-text);
+  border-color: var(--color-result-header-border);
+}
+
 .folder-search-input:focus {
   outline: none;
   box-shadow: 0 0 0 2px var(--color-button-primary);
   background: rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .folder-search-input:focus {
+  background: white;
 }
 
 /* Highlight text in search results */
@@ -1060,10 +1070,15 @@ mark.current-match {
 /* Improved animation for folder expansion */
 .folder-item-children {
   overflow: hidden;
-  max-height: 0;
-  max-height: 1000px; /* Adjusted for animation */
-  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+  transition: all 0.3s ease-in-out;
+}
+
+.folder-item-children.expanded {
   animation: expandFolder 0.3s ease-in-out forwards;
+}
+
+.folder-item-children.collapsed {
+  animation: collapseFolder 0.3s ease-in-out forwards;
 }
 
 @keyframes expandFolder {
@@ -1074,6 +1089,18 @@ mark.current-match {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes collapseFolder {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+    max-height: 0;
   }
 }
 

@@ -48,6 +48,56 @@ const FolderTree = ({
     return false;
   };
 
+  // Auto-expand parents of matching nodes when searching
+  useEffect(() => {
+    if (searchTerm) {
+      const pathsToExpand = [];
+
+      const findMatchingPaths = (node, path = "") => {
+        Object.entries(node).forEach(([name, item]) => {
+          const currentPath = path ? `${path}/${name}` : name;
+
+          if (
+            name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            currentPath.toLowerCase().includes(searchTerm.toLowerCase())
+          ) {
+            // Get all parent paths to expand
+            const parentPaths = [];
+            let parentPath = "";
+            currentPath.split("/").forEach((segment) => {
+              if (parentPath) {
+                parentPath += "/" + segment;
+                parentPaths.push(parentPath);
+              } else {
+                parentPath = segment;
+                parentPaths.push(parentPath);
+              }
+            });
+
+            // Add parent paths to the expandable array, but not the last segment if it's a file
+            if (item.type === "file") {
+              parentPaths.pop();
+            }
+
+            pathsToExpand.push(...parentPaths);
+          }
+
+          // Recursively check children
+          if (item.type === "directory" && item.children) {
+            findMatchingPaths(item.children, currentPath);
+          }
+        });
+      };
+
+      findMatchingPaths(structure);
+
+      // Add to expanded folders
+      if (pathsToExpand.length > 0) {
+        onToggleFolder(null, pathsToExpand);
+      }
+    }
+  }, [searchTerm, structure, onToggleFolder]);
+
   const renderTree = (node, path = "", level = 0) => {
     if (!node) return null;
 
@@ -107,7 +157,11 @@ const FolderTree = ({
               />
             </div>
             {isFolder && isExpanded && item.children && (
-              <div className="folder-item-children">
+              <div
+                className={`folder-item-children ${
+                  isExpanded ? "expanded" : "collapsed"
+                }`}
+              >
                 {renderTree(item.children, currentPath, level + 1)}
               </div>
             )}
@@ -208,8 +262,6 @@ function FileExplorer() {
     if (showStatistics) {
       // Immediately set hiding state for animation
       setHidingStatistics(true);
-      // Icon changes immediately now
-
       // Then after animation completes, hide the panel and reset the hiding state
       setTimeout(() => {
         setShowStatistics(false);
@@ -629,7 +681,9 @@ function FileExplorer() {
           return prev.filter((item) => item !== path);
         } else {
           // For folders, remove this path and all child paths
-          return prev.filter((item) => !item.startsWith(path));
+          return prev.filter(
+            (item) => !item.startsWith(path + "/") && item !== path
+          );
         }
       } else {
         // If it's not currently excluded, we need to add it to exclusions
@@ -641,7 +695,7 @@ function FileExplorer() {
           const childPaths = getAllChildPaths(path);
           // Filter out any existing child paths first to prevent duplicates
           const filteredPrev = prev.filter(
-            (item) => !childPaths.includes(item)
+            (item) => !childPaths.includes(item) && item !== path
           );
           return [...filteredPrev, path, ...childPaths];
         }
@@ -660,7 +714,7 @@ function FileExplorer() {
         const itemPath = currentPath ? `${currentPath}/${name}` : name;
 
         // Check if this is under the target folder path
-        if (itemPath.startsWith(folderPath) && itemPath !== folderPath) {
+        if (itemPath.startsWith(folderPath + "/")) {
           result.push(itemPath);
 
           // Recursively process children
@@ -676,10 +730,18 @@ function FileExplorer() {
   };
 
   // Function to toggle folder expansion in the tree view
-  const toggleFolder = (path) => {
+  const toggleFolder = (path, additionalPaths = null) => {
     setExpandedFolders((prev) => {
+      if (additionalPaths) {
+        // Add all additional paths, removing duplicates
+        const allPaths = [...new Set([...prev, ...additionalPaths])];
+        return allPaths;
+      }
+
       if (prev.includes(path)) {
-        return prev.filter((item) => item !== path);
+        return prev.filter(
+          (item) => !item.startsWith(path + "/") && item !== path
+        );
       } else {
         return [...prev, path];
       }
@@ -723,6 +785,7 @@ function FileExplorer() {
     setCurrentResultIndex(-1);
     setCustomExclusions([]);
     setExpandedFolders([]);
+    setShowCustomExclusions(false);
     setLoading(true);
 
     try {
@@ -776,11 +839,8 @@ function FileExplorer() {
           const structure = await buildFolderStructure(dirHandle, "", options);
           setFolderStructure(structure);
 
-          // Only expand root level folders by default
-          const rootLevelFolders = Object.keys(structure)
-            .filter((key) => structure[key].type === "directory")
-            .map((key) => key);
-          setExpandedFolders(rootLevelFolders);
+          // All folders collapsed by default (changed from root level expansion)
+          setExpandedFolders([]);
         } catch (error) {
           console.error("Error building folder structure:", error);
           setError("Error building folder structure: " + error.message);
@@ -1852,10 +1912,14 @@ function FileExplorer() {
       {fileStats.totalFiles > 0 && !loading && (
         <div className="stats-toggle-container">
           <button
-            className={`stats-toggle-button ${showStatistics ? "active" : ""}`}
+            className={`stats-toggle-button ${
+              showStatistics || hidingStatistics ? "active" : ""
+            }`}
             onClick={toggleStatistics}
           >
-            <span className="toggle-icon">{showStatistics ? "−" : "+"}</span>
+            <span className="toggle-icon">
+              {showStatistics || hidingStatistics ? "−" : "+"}
+            </span>
             {showStatistics ? "Hide Statistics" : "Show Statistics"}
           </button>
         </div>
