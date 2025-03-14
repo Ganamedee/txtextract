@@ -90,6 +90,7 @@ function FileExplorer() {
   const [showStatistics, setShowStatistics] = useState(false);
   const [hidingStatistics, setHidingStatistics] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [buildingFolderStructure, setBuildingFolderStructure] = useState(false);
   const [processedFiles, setProcessedFiles] = useState(0);
   const [totalFiles, setTotalFiles] = useState(0);
   const [error, setError] = useState("");
@@ -124,6 +125,7 @@ function FileExplorer() {
   // Refs
   const outputRef = useRef(null);
   const exclusionsRef = useRef(null);
+  const searchResultRefs = useRef([]);
 
   // Use effect for exclusion panel animation height calculation
   useEffect(() => {
@@ -458,19 +460,73 @@ function FileExplorer() {
   };
 
   // Function to build folder structure for custom exclusion UI
-  const buildFolderStructure = async (dirHandle, path = "") => {
+  // FIXED: Now respects global exclusion settings to significantly improve performance
+  const buildFolderStructure = async (dirHandle, path = "", options) => {
     const structure = {};
 
+    // First collect entries to sort them
+    const entries = [];
+
     for await (const [name, handle] of dirHandle) {
+      // Skip excluded directories based on global settings
+      if (
+        (!options.includeGit && name === ".git") ||
+        (!options.includeNodeModules && name === "node_modules") ||
+        (!options.includeBuildFolders &&
+          (name === "build" || name === "out" || name === ".next")) ||
+        (!options.includeDistFolders && name === "dist") ||
+        (!options.includeCoverage && name === "coverage") ||
+        (!options.includeDSStore && name === ".DS_Store")
+      ) {
+        continue;
+      }
+
+      // Skip excluded files based on global settings
+      if (handle.kind === "file") {
+        const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
+          name
+        );
+        const isLogFile = /\.(log|logs)$/i.test(name);
+
+        if (
+          (!options.includePackageLock && name === "package-lock.json") ||
+          (!options.includeFavicon &&
+            (name === "favicon.ico" || name.startsWith("favicon."))) ||
+          (!options.includeImgFiles && isImageFile) ||
+          (!options.includeLogFiles && isLogFile)
+        ) {
+          continue;
+        }
+      }
+
+      entries.push([name, handle]);
+    }
+
+    // Sort entries: directories first, then files, alphabetically
+    entries.sort((a, b) => {
+      const [nameA, handleA] = a;
+      const [nameB, handleB] = b;
+
+      if (handleA.kind !== handleB.kind) {
+        return handleA.kind === "directory" ? -1 : 1;
+      }
+      return nameA.localeCompare(nameB);
+    });
+
+    // Process entries
+    for (const [name, handle] of entries) {
       const newPath = path ? `${path}/${name}` : name;
 
       if (handle.kind === "directory") {
         try {
-          const children = await buildFolderStructure(handle, newPath);
-          structure[name] = {
-            type: "directory",
-            children: children,
-          };
+          const children = await buildFolderStructure(handle, newPath, options);
+          // Only include directory if it has children or if we're at top level
+          if (Object.keys(children).length > 0 || path === "") {
+            structure[name] = {
+              type: "directory",
+              children: children,
+            };
+          }
         } catch (error) {
           console.error(`Error accessing directory ${newPath}:`, error);
           structure[name] = {
@@ -601,15 +657,27 @@ function FileExplorer() {
       const result = await processDirectory(dirHandle, "", options);
       setFileStructure(result);
 
-      // Build folder structure for potential later customization
-      const structure = await buildFolderStructure(dirHandle);
-      setFolderStructure(structure);
+      // Build folder structure for potential later customization - FIXED: added loading indicator
+      setBuildingFolderStructure(true);
 
-      // Show the first level of folders expanded by default
-      const firstLevelFolders = Object.keys(structure)
-        .filter((key) => structure[key].type === "directory")
-        .map((key) => key);
-      setExpandedFolders(firstLevelFolders);
+      // Build folder structure in a non-blocking way with setTimeout
+      setTimeout(async () => {
+        try {
+          const structure = await buildFolderStructure(dirHandle, "", options);
+          setFolderStructure(structure);
+
+          // Show the first level of folders expanded by default
+          const firstLevelFolders = Object.keys(structure)
+            .filter((key) => structure[key].type === "directory")
+            .map((key) => key);
+          setExpandedFolders(firstLevelFolders);
+        } catch (error) {
+          console.error("Error building folder structure:", error);
+          setError("Error building folder structure: " + error.message);
+        } finally {
+          setBuildingFolderStructure(false);
+        }
+      }, 100);
     } catch (error) {
       console.error("Error processing folder:", error);
       setError(
@@ -795,6 +863,9 @@ function FileExplorer() {
     setSearchResults(results);
     setCurrentResultIndex(results.length > 0 ? 0 : -1);
 
+    // Reset search result refs
+    searchResultRefs.current = results.map(() => React.createRef());
+
     // Scroll to the first result if there are any
     if (results.length > 0 && outputRef.current) {
       scrollToResult(0);
@@ -817,7 +888,7 @@ function FileExplorer() {
     scrollToResult(newIndex);
   };
 
-  // Function to scroll to a specific result
+  // FIXED: Improved scrollToResult function for better search navigation
   const scrollToResult = (resultIndex) => {
     if (
       !outputRef.current ||
@@ -826,32 +897,57 @@ function FileExplorer() {
     )
       return;
 
-    const textContent = fileStructure;
     const startIndex = searchResults[resultIndex];
+    const query = searchQuery.toLowerCase();
+    const markId = `search-result-${resultIndex}`;
 
-    // Calculate the line number by counting newlines before the match
-    const textBeforeMatch = textContent.substring(0, startIndex);
-    const linesBefore = (textBeforeMatch.match(/\n/g) || []).length;
+    // Create a temporary div to help with measuring positions
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = fileStructure;
 
-    // Get all lines
-    const lines = textContent.split("\n");
+    // Calculate the exact position of the search result
+    const preText = fileStructure.substring(0, startIndex);
+    const lineBreaks = (preText.match(/\n/g) || []).length;
 
-    // Find the line that contains our match
-    let charCount = 0;
-    let targetLine = 0;
-    for (let i = 0; i < lines.length; i++) {
-      if (charCount + lines[i].length + 1 > startIndex) {
-        targetLine = i;
-        break;
-      }
-      charCount += lines[i].length + 1; // +1 for the newline character
-    }
+    // Approximate line height in the pre tag
+    const lineHeight = 18; // This is based on the CSS line-height
 
     // Calculate scroll position
-    const lineHeight = 18; // Approximate line height in pixels
-    const scrollPosition = targetLine * lineHeight;
+    const scrollPosition = lineHeight * lineBreaks;
 
-    outputRef.current.scrollTop = scrollPosition - 100; // Scroll with some context
+    // Get the height of the output container
+    const containerHeight = outputRef.current.clientHeight;
+
+    // Center the result in the view
+    outputRef.current.scrollTop =
+      scrollPosition - containerHeight / 2 + lineHeight;
+
+    // For small screens, ensure we don't go too far down
+    if (window.innerHeight < 768) {
+      outputRef.current.scrollTop = Math.max(0, scrollPosition - 100);
+    }
+
+    // Add a small delay to ensure the DOM has been updated with our marks
+    setTimeout(() => {
+      const allMarks = outputRef.current.querySelectorAll("mark");
+      const currentMark = outputRef.current.querySelector(".current-match");
+
+      if (currentMark) {
+        // Make sure it's visible in the viewport
+        const markRect = currentMark.getBoundingClientRect();
+        const containerRect = outputRef.current.getBoundingClientRect();
+
+        if (
+          markRect.top < containerRect.top ||
+          markRect.bottom > containerRect.bottom
+        ) {
+          currentMark.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }
+      }
+    }, 50);
   };
 
   // Function to highlight search results safely (maintaining HTML escaping)
@@ -870,12 +966,12 @@ function FileExplorer() {
 
       // Add the highlighted match
       if (i === currentIndex) {
-        highlightedText += `<mark class="current-match">${text.substring(
+        highlightedText += `<mark class="current-match" id="search-result-${i}">${text.substring(
           startIndex,
           endIndex
         )}</mark>`;
       } else {
-        highlightedText += `<mark>${text.substring(
+        highlightedText += `<mark id="search-result-${i}">${text.substring(
           startIndex,
           endIndex
         )}</mark>`;
@@ -1531,7 +1627,7 @@ function FileExplorer() {
           </div>
         )}
 
-        {/* Custom Files/Folders Exclusion Panel */}
+        {/* Custom Files/Folders Exclusion Panel with loading indicator */}
         {showCustomExclusions && (
           <div className="custom-exclusion-container">
             <div className="custom-exclusion-title">
@@ -1545,20 +1641,41 @@ function FileExplorer() {
                 </button>
               </div>
             </div>
-            <FolderTree
-              structure={folderStructure}
-              exclusions={customExclusions}
-              onToggleExclusion={toggleCustomExclusion}
-              expandedFolders={expandedFolders}
-              onToggleFolder={toggleFolder}
-            />
+
+            {buildingFolderStructure ? (
+              <div className="folder-tree-loading">
+                <div className="progress-container">
+                  <div className="progress-text">
+                    Building folder structure...
+                  </div>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-fill"
+                      style={{
+                        width: "100%",
+                        animation: "pulse 1.5s infinite",
+                      }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <FolderTree
+                structure={folderStructure}
+                exclusions={customExclusions}
+                onToggleExclusion={toggleCustomExclusion}
+                expandedFolders={expandedFolders}
+                onToggleFolder={toggleFolder}
+              />
+            )}
+
             <div className="custom-exclusion-help">
               Check the boxes to include files/folders, uncheck to exclude them.
             </div>
             <button
               onClick={processSelectedFolder}
               className="update-button"
-              disabled={loading}
+              disabled={loading || buildingFolderStructure}
             >
               {loading ? "Processing..." : "Update with Selected Files/Folders"}
             </button>
