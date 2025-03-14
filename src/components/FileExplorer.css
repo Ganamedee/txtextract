@@ -451,8 +451,18 @@
   background: var(--color-button-hover);
 }
 
-.stats-toggle-button.active .toggle-icon {
-  transform: rotate(180deg);
+/* Improved toggle icon animation */
+.stats-toggle-button.icon-animating .toggle-icon {
+  animation: rotateIcon 0.4s ease-in-out;
+}
+
+@keyframes rotateIcon {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(180deg);
+  }
 }
 
 /* Stats container with improved animation */
@@ -460,7 +470,9 @@
   width: 100%;
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+  transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease,
+    transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), margin 0.3s ease,
+    padding 0.3s ease;
   opacity: 0;
   background: var(--color-panel-bg);
   border-radius: 12px;
@@ -470,6 +482,8 @@
   color: var(--color-text-primary);
   transform: translateY(-20px);
   pointer-events: none;
+  padding: 0;
+  margin: 0;
 }
 
 .stats-container.show {
@@ -479,9 +493,6 @@
   padding: 1.5rem;
   transform: translateY(0);
   pointer-events: auto;
-  transition: max-height 0.7s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.6s ease,
-    transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), margin 0.3s ease,
-    padding 0.3s ease;
 }
 
 /* FIXED: Stats container closing animation */
@@ -491,9 +502,6 @@
   padding: 0;
   margin: 0;
   transform: translateY(-20px);
-  transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease,
-    transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), margin 0.3s ease,
-    padding 0.3s ease;
 }
 
 .stats-content {
@@ -1027,12 +1035,19 @@ mark.current-match {
   padding: 0.25rem 0;
   display: flex;
   align-items: center;
+  position: relative;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.folder-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .folder-item-indent {
   padding-left: 1.5rem;
 }
 
+/* Enhanced checkbox and exclusion styling */
 .folder-item-checkbox {
   margin-right: 0.5rem;
   margin-left: auto;
@@ -1040,6 +1055,7 @@ mark.current-match {
   width: 16px;
   height: 16px;
   accent-color: var(--color-button-primary);
+  transition: all 0.2s ease;
 }
 
 .folder-item-name {
@@ -1049,6 +1065,48 @@ mark.current-match {
   overflow: hidden;
   text-overflow: ellipsis;
   user-select: none;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+/* Strike-through animation for excluded items */
+.folder-item-name.excluded {
+  text-decoration: line-through;
+  opacity: 0.7;
+  animation: strikeThrough 0.3s ease forwards;
+}
+
+@keyframes strikeThrough {
+  from {
+    text-decoration-color: transparent;
+    opacity: 1;
+  }
+  to {
+    text-decoration-color: currentColor;
+    opacity: 0.7;
+  }
+}
+
+/* Animation for when an item is included again */
+.folder-item-name:not(.excluded) {
+  animation: removeStrike 0.3s ease forwards;
+}
+
+@keyframes removeStrike {
+  from {
+    text-decoration: line-through;
+    opacity: 0.7;
+  }
+  to {
+    text-decoration: none;
+    opacity: 1;
+  }
+}
+
+/* Add styling for excluded items */
+.item-excluded {
+  background-color: rgba(255, 0, 0, 0.05);
+  border-radius: 4px;
 }
 
 .folder-item-toggle {
@@ -1067,17 +1125,20 @@ mark.current-match {
   transform: rotate(90deg);
 }
 
-/* Improved animation for folder expansion */
+/* Improved animation for folder expansion and collapse */
 .folder-item-children {
   overflow: hidden;
-  transition: all 0.3s ease-in-out;
+  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out,
+    transform 0.3s ease-in-out;
 }
 
 .folder-item-children.expanded {
   animation: expandFolder 0.3s ease-in-out forwards;
+  max-height: 1000px;
+  opacity: 1;
+  transform: translateY(0);
 }
 
-/* Enhanced animation for folder collapse */
 .folder-item-children.collapsed {
   animation: collapseFolder 0.3s ease-in-out forwards;
   max-height: 0;
@@ -1087,27 +1148,27 @@ mark.current-match {
 
 @keyframes expandFolder {
   from {
+    max-height: 0;
     opacity: 0;
     transform: translateY(-10px);
-    max-height: 0;
   }
   to {
+    max-height: 1000px;
     opacity: 1;
     transform: translateY(0);
-    max-height: 1000px;
   }
 }
 
 @keyframes collapseFolder {
   from {
+    max-height: 1000px;
     opacity: 1;
     transform: translateY(0);
-    max-height: 1000px;
   }
   to {
+    max-height: 0;
     opacity: 0;
     transform: translateY(-10px);
-    max-height: 0;
   }
 }
 
@@ -1159,6 +1220,11 @@ mark.current-match {
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+/* Tree node structure */
+.tree-node {
+  transition: all 0.2s ease-in-out;
 }
 
 /* Responsive adjustments */

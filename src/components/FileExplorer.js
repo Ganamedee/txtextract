@@ -131,15 +131,17 @@ const FolderTree = ({
         return (
           <div
             key={currentPath}
-            className={
+            className={`tree-node ${
               searchTerm &&
               name.toLowerCase().includes(searchTerm.toLowerCase())
                 ? "search-match"
                 : ""
-            }
+            }`}
           >
             <div
-              className={`folder-item ${level > 0 ? "folder-item-indent" : ""}`}
+              className={`folder-item ${
+                level > 0 ? "folder-item-indent" : ""
+              } ${isExcluded ? "item-excluded" : ""}`}
               style={{ paddingLeft: `${level * 0.75}rem` }}
             >
               {isFolder && (
@@ -154,8 +156,8 @@ const FolderTree = ({
               )}
               {isFolder ? <FolderIcon /> : <FileIcon />}
               <span
-                className="folder-item-name"
-                onClick={() => isFolder && onToggleFolder(currentPath)}
+                className={`folder-item-name ${isExcluded ? "excluded" : ""}`}
+                onClick={() => onToggleExclusion(currentPath, isFolder)}
               >
                 {highlightedName}
               </span>
@@ -237,11 +239,16 @@ function FileExplorer() {
   const [searchResults, setSearchResults] = useState([]);
   const [currentResultIndex, setCurrentResultIndex] = useState(-1);
 
+  // Animation states for statistics toggle icon
+  const [statsIconAnimating, setStatsIconAnimating] = useState(false);
+
   // Refs
   const outputRef = useRef(null);
   const exclusionsRef = useRef(null);
   const searchResultRefs = useRef([]);
   const customExclusionsRef = useRef(null);
+  const statsIconRef = useRef(null);
+  const statsContainerRef = useRef(null);
 
   // Use effect for exclusion panel animation height calculation
   useEffect(() => {
@@ -269,8 +276,11 @@ function FileExplorer() {
     };
   }, [searchResults, currentResultIndex]);
 
-  // Handle statistics toggle with proper animation
+  // Improved statistics toggle with animated icon
   const toggleStatistics = () => {
+    // Start icon animation
+    setStatsIconAnimating(true);
+
     if (showStatistics) {
       // Immediately set hiding state for animation
       setHidingStatistics(true);
@@ -278,10 +288,14 @@ function FileExplorer() {
       setTimeout(() => {
         setShowStatistics(false);
         setHidingStatistics(false);
+        // End icon animation after the state change is complete
+        setTimeout(() => setStatsIconAnimating(false), 100);
       }, 500); // Match the CSS animation duration (500ms)
     } else {
       // Just show statistics without animation delay
       setShowStatistics(true);
+      // End icon animation after the state change is complete
+      setTimeout(() => setStatsIconAnimating(false), 300);
     }
   };
 
@@ -1956,7 +1970,7 @@ function FileExplorer() {
             )}
 
             <div className="custom-exclusion-help">
-              Check the boxes to include files/folders, uncheck to exclude them.
+              Click on files/folders or checkboxes to include/exclude them.
             </div>
             <button
               onClick={processSelectedFolder}
@@ -1982,12 +1996,11 @@ function FileExplorer() {
           <button
             className={`stats-toggle-button ${
               showStatistics || hidingStatistics ? "active" : ""
-            }`}
+            } ${statsIconAnimating ? "icon-animating" : ""}`}
             onClick={toggleStatistics}
+            ref={statsIconRef}
           >
-            <span className="toggle-icon">
-              {showStatistics || hidingStatistics ? "−" : "+"}
-            </span>
+            <span className="toggle-icon">{showStatistics ? "−" : "+"}</span>
             {showStatistics ? "Hide Statistics" : "Show Statistics"}
           </button>
         </div>
@@ -1997,6 +2010,7 @@ function FileExplorer() {
         className={`stats-container ${showStatistics ? "show" : ""} ${
           hidingStatistics ? "hiding" : ""
         }`}
+        ref={statsContainerRef}
       >
         <div className="stats-content">
           {fileStats.totalFiles > 0 && !loading && (
