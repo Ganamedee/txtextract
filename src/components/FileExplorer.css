@@ -824,7 +824,36 @@ mark.current-match {
   border-color: var(--color-button-primary);
 }
 
-/* Custom exclusion feature - NEW STYLES */
+/* Customize button styling */
+.customize-button-container {
+  width: 100%;
+  margin: 1rem 0;
+  display: flex;
+  justify-content: center;
+}
+
+.customize-button {
+  background: var(--color-button-primary);
+  color: var(--color-button-text);
+  border: none;
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px var(--color-shadow);
+  font-weight: 600;
+  width: 100%;
+  text-align: center;
+}
+
+.customize-button:hover {
+  background: var(--color-button-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 10px var(--color-shadow);
+}
+
+/* Custom exclusion feature styles */
 .custom-exclusion-container {
   width: 100%;
   margin-top: 1rem;
@@ -834,6 +863,7 @@ mark.current-match {
   border: 1px solid var(--color-panel-border);
   display: flex;
   flex-direction: column;
+  animation: fadeIn 0.3s ease-in-out;
 }
 
 .custom-exclusion-title {
@@ -842,9 +872,16 @@ mark.current-match {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
-.custom-exclusion-title button {
+.custom-exclusion-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-button {
   background: var(--color-button-primary);
   color: var(--color-button-text);
   border: none;
@@ -855,8 +892,9 @@ mark.current-match {
   transition: all 0.3s ease;
 }
 
-.custom-exclusion-title button:hover {
+.action-button:hover {
   background: var(--color-button-hover);
+  transform: translateY(-2px);
 }
 
 .folder-tree {
@@ -866,6 +904,7 @@ mark.current-match {
   background: rgba(0, 0, 0, 0.05);
   border-radius: 4px;
   margin-bottom: 1rem;
+  color: var(--color-text-primary);
 }
 
 .folder-tree::-webkit-scrollbar {
@@ -884,6 +923,13 @@ mark.current-match {
   transition: background-color 0.3s ease;
 }
 
+.folder-tree-empty {
+  padding: 1rem;
+  text-align: center;
+  color: var(--color-text-primary);
+  opacity: 0.7;
+}
+
 .folder-item {
   padding: 0.25rem 0;
   display: flex;
@@ -896,7 +942,11 @@ mark.current-match {
 
 .folder-item-checkbox {
   margin-right: 0.5rem;
+  margin-left: auto;
   cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-button-primary);
 }
 
 .folder-item-name {
@@ -905,6 +955,7 @@ mark.current-match {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  user-select: none;
 }
 
 .folder-item-toggle {
@@ -935,6 +986,42 @@ mark.current-match {
 
 .file-icon {
   color: #a0aec0;
+}
+
+.custom-exclusion-help {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+  opacity: 0.8;
+}
+
+.update-button {
+  background: var(--color-button-primary);
+  color: var(--color-button-text);
+  border: none;
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px var(--color-shadow);
+  font-weight: 600;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.update-button:hover {
+  background: var(--color-button-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 10px var(--color-shadow);
+}
+
+.update-button:disabled {
+  background: var(--color-button-primary);
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* Responsive adjustments */
@@ -1000,5 +1087,14 @@ mark.current-match {
   .toggle-button {
     font-size: 0.9rem;
     padding: 0.7rem 1rem;
+  }
+
+  .custom-exclusion-title {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .custom-exclusion-actions {
+    justify-content: space-between;
   }
 }

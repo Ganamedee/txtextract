@@ -16,6 +16,12 @@ const FolderTree = ({
   expandedFolders,
   onToggleFolder,
 }) => {
+  if (!structure || Object.keys(structure).length === 0) {
+    return (
+      <div className="folder-tree-empty">No files or folders to display</div>
+    );
+  }
+
   const renderTree = (node, path = "", level = 0) => {
     if (!node) return null;
 
@@ -62,15 +68,7 @@ const FolderTree = ({
     });
   };
 
-  return (
-    <div className="folder-tree">
-      {structure && Object.keys(structure).length > 0 ? (
-        renderTree(structure)
-      ) : (
-        <div className="folder-tree-empty">No files or folders to display</div>
-      )}
-    </div>
-  );
+  return <div className="folder-tree">{renderTree(structure)}</div>;
 };
 
 function FileExplorer() {
@@ -99,7 +97,7 @@ function FileExplorer() {
   const [folderName, setFolderName] = useState("");
   const [showExclusions, setShowExclusions] = useState(false);
 
-  // NEW: Custom folder/file exclusion states
+  // Custom folder/file exclusion states
   const [folderStructure, setFolderStructure] = useState({});
   const [customExclusions, setCustomExclusions] = useState([]);
   const [showCustomExclusions, setShowCustomExclusions] = useState(false);
@@ -141,14 +139,17 @@ function FileExplorer() {
   // Handle statistics toggle with proper animation
   const toggleStatistics = () => {
     if (showStatistics) {
+      // First set the hiding animation state
       setHidingStatistics(true);
+
+      // Then after animation completes, hide the panel and reset the hiding state
       setTimeout(() => {
         setShowStatistics(false);
         setHidingStatistics(false);
-      }, 500); // Match the CSS animation duration
+      }, 500); // Match the CSS animation duration (500ms)
     } else {
+      // Just show statistics without animation delay
       setShowStatistics(true);
-      setHidingStatistics(false);
     }
   };
 
@@ -179,7 +180,10 @@ function FileExplorer() {
       const currentPath = options.currentPath
         ? `${options.currentPath}/${name}`
         : name;
-      if (options.customExclusions.includes(currentPath)) {
+      if (
+        options.customExclusions &&
+        options.customExclusions.includes(currentPath)
+      ) {
         continue;
       }
 
@@ -204,10 +208,7 @@ function FileExplorer() {
       if (handle.kind === "directory") {
         try {
           // Pass the current path to build the full path for children
-          const newOptions = {
-            ...options,
-            currentPath: currentPath,
-          };
+          const newOptions = { ...options, currentPath: currentPath };
           count += await countFiles(handle, newOptions);
         } catch (error) {
           console.error(`Error counting files in directory ${name}:`, error);
@@ -249,7 +250,10 @@ function FileExplorer() {
 
       // Skip custom excluded paths
       const currentPath = path ? `${path}/${name}` : name;
-      if (options.customExclusions.includes(currentPath)) {
+      if (
+        options.customExclusions &&
+        options.customExclusions.includes(currentPath)
+      ) {
         continue;
       }
 
@@ -373,7 +377,10 @@ function FileExplorer() {
       }
 
       // Skip custom excluded paths
-      if (options.customExclusions.includes(newPath)) {
+      if (
+        options.customExclusions &&
+        options.customExclusions.includes(newPath)
+      ) {
         continue;
       }
 
@@ -450,7 +457,7 @@ function FileExplorer() {
     }
   };
 
-  // NEW: Function to build folder structure for custom exclusion UI
+  // Function to build folder structure for custom exclusion UI
   const buildFolderStructure = async (dirHandle, path = "") => {
     const structure = {};
 
@@ -493,7 +500,7 @@ function FileExplorer() {
       .replace(/'/g, "&#039;");
   };
 
-  // NEW: Toggle function for custom exclusion
+  // Toggle function for custom exclusion
   const toggleCustomExclusion = (path) => {
     setCustomExclusions((prev) => {
       if (prev.includes(path)) {
@@ -504,7 +511,7 @@ function FileExplorer() {
     });
   };
 
-  // NEW: Toggle function for expanding folders in the tree view
+  // Function to toggle folder expansion in the tree view
   const toggleFolder = (path) => {
     setExpandedFolders((prev) => {
       if (prev.includes(path)) {
@@ -513,6 +520,32 @@ function FileExplorer() {
         return [...prev, path];
       }
     });
+  };
+
+  // Function to select all items
+  const selectAllItems = () => {
+    setCustomExclusions([]);
+  };
+
+  // Function to deselect all items
+  const deselectAllItems = () => {
+    // Get all paths recursively from the folder structure
+    const getAllPaths = (structure, basePath = "") => {
+      let paths = [];
+
+      Object.entries(structure).forEach(([name, item]) => {
+        const currentPath = basePath ? `${basePath}/${name}` : name;
+        paths.push(currentPath);
+
+        if (item.type === "directory" && item.children) {
+          paths = [...paths, ...getAllPaths(item.children, currentPath)];
+        }
+      });
+
+      return paths;
+    };
+
+    setCustomExclusions(getAllPaths(folderStructure));
   };
 
   const handleFolderSelect = async () => {
@@ -524,9 +557,7 @@ function FileExplorer() {
     setSearchQuery("");
     setSearchResults([]);
     setCurrentResultIndex(-1);
-    setFolderStructure({});
-    setCustomExclusions([]);
-    setExpandedFolders([]);
+    setLoading(true);
 
     try {
       // Check browser compatibility
@@ -543,10 +574,36 @@ function FileExplorer() {
       // Save folder name for download
       setFolderName(dirHandle.name);
 
-      // Build folder structure for custom exclusion
+      // Process the folder immediately with default options
+      // Count total files for progress tracking
+      const options = {
+        includeGit,
+        includeNodeModules,
+        includePackageLock,
+        includeFavicon,
+        includeImgFiles,
+        includeDSStore,
+        includeBuildFolders,
+        includeDistFolders,
+        includeCoverage,
+        includeLogFiles,
+        customExclusions: [],
+      };
+
+      const totalFilesCount = await countFiles(dirHandle, options);
+      setTotalFiles(totalFilesCount);
+
+      // Collect statistics
+      const stats = await collectStatistics(dirHandle, "", options);
+      setFileStats(stats);
+
+      // Process the directory
+      const result = await processDirectory(dirHandle, "", options);
+      setFileStructure(result);
+
+      // Build folder structure for potential later customization
       const structure = await buildFolderStructure(dirHandle);
       setFolderStructure(structure);
-      setShowCustomExclusions(true);
 
       // Show the first level of folders expanded by default
       const firstLevelFolders = Object.keys(structure)
@@ -554,14 +611,16 @@ function FileExplorer() {
         .map((key) => key);
       setExpandedFolders(firstLevelFolders);
     } catch (error) {
-      console.error("Error selecting folder:", error);
+      console.error("Error processing folder:", error);
       setError(
-        error.message || "An error occurred while selecting the folder."
+        error.message || "An error occurred while processing the folder."
       );
+    } finally {
+      setLoading(false);
     }
   };
 
-  // NEW: Process the selected folder with current options and exclusions
+  // Process the selected folder with custom exclusions
   const processSelectedFolder = async () => {
     if (!selectedDirHandle) {
       setError("Please select a folder first.");
@@ -638,7 +697,10 @@ function FileExplorer() {
       }
 
       // Skip custom excluded paths
-      if (options.customExclusions.includes(newPath)) {
+      if (
+        options.customExclusions &&
+        options.customExclusions.includes(newPath)
+      ) {
         continue;
       }
 
@@ -709,6 +771,11 @@ function FileExplorer() {
     }
 
     return output;
+  };
+
+  // Function to toggle custom exclusion panel
+  const toggleCustomExclusionsPanel = () => {
+    setShowCustomExclusions(!showCustomExclusions);
   };
 
   // Search functionality
@@ -1297,26 +1364,6 @@ function FileExplorer() {
 
         {error && <div className="error-message">{error}</div>}
 
-        {/* Show custom exclusion panel when a folder is selected */}
-        {showCustomExclusions && (
-          <div className="custom-exclusion-container">
-            <div className="custom-exclusion-title">
-              <span>Select files and folders to include</span>
-              <button onClick={processSelectedFolder}>Process Selected</button>
-            </div>
-            <FolderTree
-              structure={folderStructure}
-              exclusions={customExclusions}
-              onToggleExclusion={toggleCustomExclusion}
-              expandedFolders={expandedFolders}
-              onToggleFolder={toggleFolder}
-            />
-            <div className="custom-exclusion-help">
-              Check the boxes to include files/folders, uncheck to exclude them.
-            </div>
-          </div>
-        )}
-
         {/* Toggle button for exclusions */}
         <div className="options-toggle">
           <button
@@ -1324,7 +1371,7 @@ function FileExplorer() {
             onClick={() => setShowExclusions(!showExclusions)}
           >
             <span className="toggle-icon">{showExclusions ? "−" : "+"}</span>
-            File & Folder Exclusion Options
+            Global File & Folder Exclusion Options
           </button>
         </div>
 
@@ -1471,6 +1518,52 @@ function FileExplorer() {
             </div>
           </div>
         </div>
+
+        {/* Customize Files/Folders Button - only show when files have been processed */}
+        {fileStructure && !showCustomExclusions && !loading && (
+          <div className="customize-button-container">
+            <button
+              className="customize-button"
+              onClick={toggleCustomExclusionsPanel}
+            >
+              Customize Files/Folders
+            </button>
+          </div>
+        )}
+
+        {/* Custom Files/Folders Exclusion Panel */}
+        {showCustomExclusions && (
+          <div className="custom-exclusion-container">
+            <div className="custom-exclusion-title">
+              <span>Select files and folders to include</span>
+              <div className="custom-exclusion-actions">
+                <button onClick={selectAllItems} className="action-button">
+                  Select All
+                </button>
+                <button onClick={deselectAllItems} className="action-button">
+                  Deselect All
+                </button>
+              </div>
+            </div>
+            <FolderTree
+              structure={folderStructure}
+              exclusions={customExclusions}
+              onToggleExclusion={toggleCustomExclusion}
+              expandedFolders={expandedFolders}
+              onToggleFolder={toggleFolder}
+            />
+            <div className="custom-exclusion-help">
+              Check the boxes to include files/folders, uncheck to exclude them.
+            </div>
+            <button
+              onClick={processSelectedFolder}
+              className="update-button"
+              disabled={loading}
+            >
+              {loading ? "Processing..." : "Update with Selected Files/Folders"}
+            </button>
+          </div>
+        )}
 
         {!isFileSystemAccessSupported() && (
           <div className="browser-warning">
