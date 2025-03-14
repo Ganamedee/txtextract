@@ -50,11 +50,15 @@ const FolderTree = ({
 
   // Auto-expand parents of matching nodes when searching
   useEffect(() => {
-    if (searchTerm) {
+    if (searchTerm && onToggleFolder) {
       const pathsToExpand = [];
 
       const findMatchingPaths = (node, path = "") => {
+        if (!node) return;
+
         Object.entries(node).forEach(([name, item]) => {
+          if (!item) return;
+
           const currentPath = path ? `${path}/${name}` : name;
 
           if (
@@ -76,14 +80,16 @@ const FolderTree = ({
 
             // Add parent paths to the expandable array, but not the last segment if it's a file
             if (item.type === "file") {
-              parentPaths.pop();
+              if (parentPaths.length > 0) {
+                parentPaths.pop();
+              }
             }
 
             pathsToExpand.push(...parentPaths);
           }
 
           // Recursively check children
-          if (item.type === "directory" && item.children) {
+          if (item && item.type === "directory" && item.children) {
             findMatchingPaths(item.children, currentPath);
           }
         });
@@ -93,7 +99,9 @@ const FolderTree = ({
 
       // Add to expanded folders
       if (pathsToExpand.length > 0) {
-        onToggleFolder(null, pathsToExpand);
+        // Remove duplicates before adding
+        const uniquePaths = [...new Set(pathsToExpand)];
+        onToggleFolder("", uniquePaths);
       }
     }
   }, [searchTerm, structure, onToggleFolder]);
@@ -156,13 +164,14 @@ const FolderTree = ({
                 onChange={() => onToggleExclusion(currentPath, isFolder)}
               />
             </div>
-            {isFolder && isExpanded && item.children && (
+            {isFolder && item.children && (
               <div
                 className={`folder-item-children ${
                   isExpanded ? "expanded" : "collapsed"
                 }`}
               >
-                {renderTree(item.children, currentPath, level + 1)}
+                {isExpanded &&
+                  renderTree(item.children, currentPath, level + 1)}
               </div>
             )}
           </div>
@@ -281,67 +290,70 @@ function FileExplorer() {
   // Function to count files in directory (for progress tracking)
   const countFiles = async (dirHandle, options) => {
     let count = 0;
+    const currentPath = options.currentPath || "";
 
-    for await (const [name, handle] of dirHandle) {
-      // Skip excluded directories
-      if (
-        (!options.includeGit && name === ".git") ||
-        (!options.includeNodeModules && name === "node_modules") ||
-        (!options.includeBuildFolders &&
-          (name === "build" || name === "out" || name === ".next")) ||
-        (!options.includeDistFolders && name === "dist") ||
-        (!options.includeCoverage && name === "coverage") ||
-        (!options.includeDSStore && name === ".DS_Store")
-      ) {
-        continue;
-      }
-
-      // Skip custom excluded paths
-      const currentPath = options.currentPath
-        ? `${options.currentPath}/${name}`
-        : name;
-      if (
-        options.customExclusions &&
-        options.customExclusions.includes(currentPath)
-      ) {
-        continue;
-      }
-
-      // Skip excluded files
-      if (handle.kind === "file") {
-        const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
-          name
-        );
-        const isLogFile = /\.(log|logs)$/i.test(name);
-
+    try {
+      for await (const [name, handle] of dirHandle) {
+        // Skip excluded directories
         if (
-          (!options.includePackageLock && name === "package-lock.json") ||
-          (!options.includeFavicon &&
-            (name === "favicon.ico" || name.startsWith("favicon."))) ||
-          (!options.includeImgFiles && isImageFile) ||
-          (!options.includeLogFiles && isLogFile)
+          (!options.includeGit && name === ".git") ||
+          (!options.includeNodeModules && name === "node_modules") ||
+          (!options.includeBuildFolders &&
+            (name === "build" || name === "out" || name === ".next")) ||
+          (!options.includeDistFolders && name === "dist") ||
+          (!options.includeCoverage && name === "coverage") ||
+          (!options.includeDSStore && name === ".DS_Store")
         ) {
           continue;
         }
-      }
 
-      if (handle.kind === "directory") {
-        try {
-          // Pass the current path to build the full path for children
-          const newOptions = { ...options, currentPath: currentPath };
-          count += await countFiles(handle, newOptions);
-        } catch (error) {
-          console.error(`Error counting files in directory ${name}:`, error);
+        // Skip custom excluded paths
+        const newPath = currentPath ? `${currentPath}/${name}` : name;
+        if (
+          options.customExclusions &&
+          options.customExclusions.includes(newPath)
+        ) {
+          continue;
         }
-      } else {
-        count++;
+
+        // Skip excluded files
+        if (handle.kind === "file") {
+          const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
+            name
+          );
+          const isLogFile = /\.(log|logs)$/i.test(name);
+
+          if (
+            (!options.includePackageLock && name === "package-lock.json") ||
+            (!options.includeFavicon &&
+              (name === "favicon.ico" || name.startsWith("favicon."))) ||
+            (!options.includeImgFiles && isImageFile) ||
+            (!options.includeLogFiles && isLogFile)
+          ) {
+            continue;
+          }
+        }
+
+        if (handle.kind === "directory") {
+          try {
+            // Pass the current path to build the full path for children
+            const newOptions = { ...options, currentPath: newPath };
+            count += await countFiles(handle, newOptions);
+          } catch (error) {
+            console.error(`Error counting files in directory ${name}:`, error);
+          }
+        } else {
+          count++;
+        }
       }
+    } catch (error) {
+      console.error(`Error iterating through directory:`, error);
     }
 
     return count;
   };
 
-  // UPDATED: Function to build the directory tree structure, including all folders but marking excluded ones
+  // Function to build the directory tree structure, including all folders but marking excluded ones
   const buildDirectoryTree = async (
     dirHandle,
     path,
@@ -354,8 +366,13 @@ function FileExplorer() {
     const entries = [];
 
     // First, collect all entries WITHOUT filtering out excluded ones
-    for await (const [name, handle] of dirHandle) {
-      entries.push({ name, handle });
+    try {
+      for await (const [name, handle] of dirHandle) {
+        entries.push({ name, handle });
+      }
+    } catch (error) {
+      console.error(`Error collecting entries from directory:`, error);
+      return `${indent}[Error: ${error.message}]\n`;
     }
 
     // Sort entries: directories first, then files, alphabetically within each group
@@ -436,6 +453,7 @@ function FileExplorer() {
 
   // Helper function to count words in a string
   const countWords = (text) => {
+    if (!text) return 0;
     return text
       .trim()
       .split(/\s+/)
@@ -474,100 +492,104 @@ function FileExplorer() {
 
   // Function to traverse directory and collect stats
   const processDirectoryStats = async (dirHandle, path, options, stats) => {
-    for await (const [name, handle] of dirHandle) {
-      const newPath = path ? `${path}/${name}` : name;
+    try {
+      for await (const [name, handle] of dirHandle) {
+        const newPath = path ? `${path}/${name}` : name;
 
-      // Skip excluded directories
-      if (
-        (!options.includeGit && name === ".git") ||
-        (!options.includeNodeModules && name === "node_modules") ||
-        (!options.includeBuildFolders &&
-          (name === "build" || name === "out" || name === ".next")) ||
-        (!options.includeDistFolders && name === "dist") ||
-        (!options.includeCoverage && name === "coverage") ||
-        (!options.includeDSStore && name === ".DS_Store")
-      ) {
-        continue;
-      }
-
-      // Skip custom excluded paths
-      if (
-        options.customExclusions &&
-        options.customExclusions.includes(newPath)
-      ) {
-        continue;
-      }
-
-      if (handle.kind === "directory") {
-        try {
-          await processDirectoryStats(handle, newPath, options, stats);
-        } catch (error) {
-          console.error(`Error accessing directory ${newPath}:`, error);
-        }
-      } else {
-        // Skip excluded files
-        const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
-          name
-        );
-        const isLogFile = /\.(log|logs)$/i.test(name);
-
+        // Skip excluded directories
         if (
-          (!options.includePackageLock && name === "package-lock.json") ||
-          (!options.includeFavicon &&
-            (name === "favicon.ico" || name.startsWith("favicon."))) ||
-          (!options.includeImgFiles && isImageFile) ||
-          (!options.includeLogFiles && isLogFile)
+          (!options.includeGit && name === ".git") ||
+          (!options.includeNodeModules && name === "node_modules") ||
+          (!options.includeBuildFolders &&
+            (name === "build" || name === "out" || name === ".next")) ||
+          (!options.includeDistFolders && name === "dist") ||
+          (!options.includeCoverage && name === "coverage") ||
+          (!options.includeDSStore && name === ".DS_Store")
         ) {
           continue;
         }
 
-        try {
-          const file = await handle.getFile();
+        // Skip custom excluded paths
+        if (
+          options.customExclusions &&
+          options.customExclusions.includes(newPath)
+        ) {
+          continue;
+        }
 
-          // Update file stats
-          stats.totalFiles++;
-          stats.totalSize += file.size;
-
-          // Track largest and smallest files
-          if (file.size > stats.largestFile.size) {
-            stats.largestFile = { name: newPath, size: file.size };
+        if (handle.kind === "directory") {
+          try {
+            await processDirectoryStats(handle, newPath, options, stats);
+          } catch (error) {
+            console.error(`Error accessing directory ${newPath}:`, error);
           }
-          if (file.size < stats.smallestFile.size) {
-            stats.smallestFile = { name: newPath, size: file.size };
+        } else {
+          // Skip excluded files
+          const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
+            name
+          );
+          const isLogFile = /\.(log|logs)$/i.test(name);
+
+          if (
+            (!options.includePackageLock && name === "package-lock.json") ||
+            (!options.includeFavicon &&
+              (name === "favicon.ico" || name.startsWith("favicon."))) ||
+            (!options.includeImgFiles && isImageFile) ||
+            (!options.includeLogFiles && isLogFile)
+          ) {
+            continue;
           }
 
-          // Track file types
-          const fileExtension =
-            name.split(".").pop().toLowerCase() || "unknown";
-          if (!stats.fileTypes[fileExtension]) {
-            stats.fileTypes[fileExtension] = { count: 0, size: 0 };
-          }
-          stats.fileTypes[fileExtension].count++;
-          stats.fileTypes[fileExtension].size += file.size;
+          try {
+            const file = await handle.getFile();
 
-          // Get text content to count lines, characters, and words
-          // Only process files under 5MB for text analysis
-          if (file.size <= 5 * 1024 * 1024) {
-            try {
-              const text = await file.text();
-              const lines = text.split("\n").length;
-              const characters = text.length;
-              const words = countWords(text);
+            // Update file stats
+            stats.totalFiles++;
+            stats.totalSize += file.size;
 
-              stats.totalLines += lines;
-              stats.totalCharacters += characters;
-              stats.totalWords += words;
-            } catch (error) {
-              console.error(
-                `Error reading file content for ${newPath}:`,
-                error
-              );
+            // Track largest and smallest files
+            if (file.size > stats.largestFile.size) {
+              stats.largestFile = { name: newPath, size: file.size };
             }
+            if (file.size < stats.smallestFile.size) {
+              stats.smallestFile = { name: newPath, size: file.size };
+            }
+
+            // Track file types
+            const fileExtension =
+              name.split(".").pop().toLowerCase() || "unknown";
+            if (!stats.fileTypes[fileExtension]) {
+              stats.fileTypes[fileExtension] = { count: 0, size: 0 };
+            }
+            stats.fileTypes[fileExtension].count++;
+            stats.fileTypes[fileExtension].size += file.size;
+
+            // Get text content to count lines, characters, and words
+            // Only process files under 5MB for text analysis
+            if (file.size <= 5 * 1024 * 1024) {
+              try {
+                const text = await file.text();
+                const lines = text.split("\n").length;
+                const characters = text.length;
+                const words = countWords(text);
+
+                stats.totalLines += lines;
+                stats.totalCharacters += characters;
+                stats.totalWords += words;
+              } catch (error) {
+                console.error(
+                  `Error reading file content for ${newPath}:`,
+                  error
+                );
+              }
+            }
+          } catch (error) {
+            console.error(`Error reading file ${newPath}:`, error);
           }
-        } catch (error) {
-          console.error(`Error reading file ${newPath}:`, error);
         }
       }
+    } catch (error) {
+      console.error(`Error processing directory stats:`, error);
     }
   };
 
@@ -576,83 +598,91 @@ function FileExplorer() {
   const buildFolderStructure = async (dirHandle, path = "", options) => {
     const structure = {};
 
-    // First collect entries to sort them
-    const entries = [];
+    try {
+      // First collect entries to sort them
+      const entries = [];
 
-    for await (const [name, handle] of dirHandle) {
-      // Skip excluded directories based on global settings
-      if (
-        (!options.includeGit && name === ".git") ||
-        (!options.includeNodeModules && name === "node_modules") ||
-        (!options.includeBuildFolders &&
-          (name === "build" || name === "out" || name === ".next")) ||
-        (!options.includeDistFolders && name === "dist") ||
-        (!options.includeCoverage && name === "coverage") ||
-        (!options.includeDSStore && name === ".DS_Store")
-      ) {
-        continue;
-      }
-
-      // Skip excluded files based on global settings
-      if (handle.kind === "file") {
-        const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
-          name
-        );
-        const isLogFile = /\.(log|logs)$/i.test(name);
-
+      for await (const [name, handle] of dirHandle) {
+        // Skip excluded directories based on global settings
         if (
-          (!options.includePackageLock && name === "package-lock.json") ||
-          (!options.includeFavicon &&
-            (name === "favicon.ico" || name.startsWith("favicon."))) ||
-          (!options.includeImgFiles && isImageFile) ||
-          (!options.includeLogFiles && isLogFile)
+          (!options.includeGit && name === ".git") ||
+          (!options.includeNodeModules && name === "node_modules") ||
+          (!options.includeBuildFolders &&
+            (name === "build" || name === "out" || name === ".next")) ||
+          (!options.includeDistFolders && name === "dist") ||
+          (!options.includeCoverage && name === "coverage") ||
+          (!options.includeDSStore && name === ".DS_Store")
         ) {
           continue;
         }
+
+        // Skip excluded files based on global settings
+        if (handle.kind === "file") {
+          const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
+            name
+          );
+          const isLogFile = /\.(log|logs)$/i.test(name);
+
+          if (
+            (!options.includePackageLock && name === "package-lock.json") ||
+            (!options.includeFavicon &&
+              (name === "favicon.ico" || name.startsWith("favicon."))) ||
+            (!options.includeImgFiles && isImageFile) ||
+            (!options.includeLogFiles && isLogFile)
+          ) {
+            continue;
+          }
+        }
+
+        entries.push([name, handle]);
       }
 
-      entries.push([name, handle]);
-    }
+      // Sort entries: directories first, then files, alphabetically
+      entries.sort((a, b) => {
+        const [nameA, handleA] = a;
+        const [nameB, handleB] = b;
 
-    // Sort entries: directories first, then files, alphabetically
-    entries.sort((a, b) => {
-      const [nameA, handleA] = a;
-      const [nameB, handleB] = b;
+        if (handleA.kind !== handleB.kind) {
+          return handleA.kind === "directory" ? -1 : 1;
+        }
+        return nameA.localeCompare(nameB);
+      });
 
-      if (handleA.kind !== handleB.kind) {
-        return handleA.kind === "directory" ? -1 : 1;
-      }
-      return nameA.localeCompare(nameB);
-    });
+      // Process entries
+      for (const [name, handle] of entries) {
+        const newPath = path ? `${path}/${name}` : name;
 
-    // Process entries
-    for (const [name, handle] of entries) {
-      const newPath = path ? `${path}/${name}` : name;
-
-      if (handle.kind === "directory") {
-        try {
-          const children = await buildFolderStructure(handle, newPath, options);
-          // Only include directory if it has children or if we're at top level
-          if (Object.keys(children).length > 0 || path === "") {
+        if (handle.kind === "directory") {
+          try {
+            const children = await buildFolderStructure(
+              handle,
+              newPath,
+              options
+            );
+            // Only include directory if it has children or if we're at top level
+            if (Object.keys(children).length > 0 || path === "") {
+              structure[name] = {
+                type: "directory",
+                children: children,
+              };
+            }
+          } catch (error) {
+            console.error(`Error accessing directory ${newPath}:`, error);
             structure[name] = {
               type: "directory",
-              children: children,
+              children: {},
+              error: error.message,
             };
           }
-        } catch (error) {
-          console.error(`Error accessing directory ${newPath}:`, error);
+        } else {
           structure[name] = {
-            type: "directory",
-            children: {},
-            error: error.message,
+            type: "file",
+            path: newPath,
           };
         }
-      } else {
-        structure[name] = {
-          type: "file",
-          path: newPath,
-        };
       }
+    } catch (error) {
+      console.error("Error building folder structure:", error);
     }
 
     return structure;
@@ -660,6 +690,7 @@ function FileExplorer() {
 
   // Helper function to escape HTML
   const escapeHtml = (unsafe) => {
+    if (!unsafe) return "";
     return unsafe
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
@@ -711,6 +742,8 @@ function FileExplorer() {
       if (!structure) return;
 
       Object.entries(structure).forEach(([name, item]) => {
+        if (!item) return;
+
         const itemPath = currentPath ? `${currentPath}/${name}` : name;
 
         // Check if this is under the target folder path
@@ -732,19 +765,21 @@ function FileExplorer() {
   // Function to toggle folder expansion in the tree view
   const toggleFolder = (path, additionalPaths = null) => {
     setExpandedFolders((prev) => {
-      if (additionalPaths) {
+      if (additionalPaths && Array.isArray(additionalPaths)) {
         // Add all additional paths, removing duplicates
         const allPaths = [...new Set([...prev, ...additionalPaths])];
         return allPaths;
       }
 
-      if (prev.includes(path)) {
+      if (path && prev.includes(path)) {
         return prev.filter(
           (item) => !item.startsWith(path + "/") && item !== path
         );
-      } else {
+      } else if (path) {
         return [...prev, path];
       }
+
+      return prev;
     });
   };
 
@@ -760,6 +795,8 @@ function FileExplorer() {
       let paths = [];
 
       Object.entries(structure).forEach(([name, item]) => {
+        if (!item) return;
+
         const currentPath = basePath ? `${basePath}/${name}` : name;
         paths.push(currentPath);
 
@@ -911,101 +948,106 @@ function FileExplorer() {
   const processDirectory = async (dirHandle, path, options) => {
     let output = "";
 
-    // First, generate the tree structure for the top of the file
-    output += "// Full Directory Structure:\n";
-    const treeStructure = await buildDirectoryTree(dirHandle, "", options);
-    output += treeStructure;
-    output += "\n// Detailed File Contents:\n";
+    try {
+      // First, generate the tree structure for the top of the file
+      output += "// Full Directory Structure:\n";
+      const treeStructure = await buildDirectoryTree(dirHandle, "", options);
+      output += treeStructure;
+      output += "\n// Detailed File Contents:\n";
 
-    // Original file content processing logic
-    for await (const [name, handle] of dirHandle) {
-      const newPath = path ? `${path}/${name}` : name;
+      // Original file content processing logic
+      for await (const [name, handle] of dirHandle) {
+        const newPath = path ? `${path}/${name}` : name;
 
-      // Skip excluded directories
-      if (
-        (!options.includeGit && name === ".git") ||
-        (!options.includeNodeModules && name === "node_modules") ||
-        (!options.includeBuildFolders &&
-          (name === "build" || name === "out" || name === ".next")) ||
-        (!options.includeDistFolders && name === "dist") ||
-        (!options.includeCoverage && name === "coverage") ||
-        (!options.includeDSStore && name === ".DS_Store")
-      ) {
-        continue;
-      }
-
-      // Skip custom excluded paths
-      if (
-        options.customExclusions &&
-        options.customExclusions.includes(newPath)
-      ) {
-        continue;
-      }
-
-      // Skip excluded files
-      if (handle.kind === "file") {
-        const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
-          name
-        );
-        const isLogFile = /\.(log|logs)$/i.test(name);
-
+        // Skip excluded directories
         if (
-          (!options.includePackageLock && name === "package-lock.json") ||
-          (!options.includeFavicon &&
-            (name === "favicon.ico" || name.startsWith("favicon."))) ||
-          (!options.includeImgFiles && isImageFile) ||
-          (!options.includeLogFiles && isLogFile)
+          (!options.includeGit && name === ".git") ||
+          (!options.includeNodeModules && name === "node_modules") ||
+          (!options.includeBuildFolders &&
+            (name === "build" || name === "out" || name === ".next")) ||
+          (!options.includeDistFolders && name === "dist") ||
+          (!options.includeCoverage && name === "coverage") ||
+          (!options.includeDSStore && name === ".DS_Store")
         ) {
           continue;
         }
-      }
 
-      if (handle.kind === "directory") {
-        // Add directory name
-        output += `\n// Directory: ${newPath}\n`;
+        // Skip custom excluded paths
+        if (
+          options.customExclusions &&
+          options.customExclusions.includes(newPath)
+        ) {
+          continue;
+        }
 
-        try {
-          // Process subdirectory
-          const subdirContent = await processDirectory(
-            handle,
-            newPath,
-            options
+        // Skip excluded files
+        if (handle.kind === "file") {
+          const isImageFile = /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(
+            name
           );
-          output += subdirContent;
-        } catch (error) {
-          output += `\n// Error accessing directory ${newPath}: ${error.message}\n`;
-        }
-      } else {
-        try {
-          // Get file contents
-          const file = await handle.getFile();
+          const isLogFile = /\.(log|logs)$/i.test(name);
 
-          // Skip very large files (greater than 5MB)
-          if (file.size > 5 * 1024 * 1024) {
-            output += `\n// File: ${newPath} (skipped - size: ${(
-              file.size / 1024
-            ).toFixed(2)} KB)\n`;
-          } else {
-            try {
-              const text = await file.text();
-
-              // Escape HTML in file content to prevent rendering
-              const escapedText = escapeHtml(text);
-
-              // Add file path as a comment
-              output += `\n// File: ${newPath}\n`;
-              output += `${escapedText}\n`;
-            } catch (error) {
-              output += `\n// File: ${newPath} (error reading content: ${error.message})\n`;
-            }
+          if (
+            (!options.includePackageLock && name === "package-lock.json") ||
+            (!options.includeFavicon &&
+              (name === "favicon.ico" || name.startsWith("favicon."))) ||
+            (!options.includeImgFiles && isImageFile) ||
+            (!options.includeLogFiles && isLogFile)
+          ) {
+            continue;
           }
+        }
 
-          // Update progress
-          setProcessedFiles((prev) => prev + 1);
-        } catch (error) {
-          output += `\n// Error reading file ${newPath}: ${error.message}\n`;
+        if (handle.kind === "directory") {
+          // Add directory name
+          output += `\n// Directory: ${newPath}\n`;
+
+          try {
+            // Process subdirectory
+            const subdirContent = await processDirectory(
+              handle,
+              newPath,
+              options
+            );
+            output += subdirContent;
+          } catch (error) {
+            output += `\n// Error accessing directory ${newPath}: ${error.message}\n`;
+          }
+        } else {
+          try {
+            // Get file contents
+            const file = await handle.getFile();
+
+            // Skip very large files (greater than 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+              output += `\n// File: ${newPath} (skipped - size: ${(
+                file.size / 1024
+              ).toFixed(2)} KB)\n`;
+            } else {
+              try {
+                const text = await file.text();
+
+                // Escape HTML in file content to prevent rendering
+                const escapedText = escapeHtml(text);
+
+                // Add file path as a comment
+                output += `\n// File: ${newPath}\n`;
+                output += `${escapedText}\n`;
+              } catch (error) {
+                output += `\n// File: ${newPath} (error reading content: ${error.message})\n`;
+              }
+            }
+
+            // Update progress
+            setProcessedFiles((prev) => prev + 1);
+          } catch (error) {
+            output += `\n// Error reading file ${newPath}: ${error.message}\n`;
+          }
         }
       }
+    } catch (error) {
+      console.error("Error processing directory:", error);
+      output += `\n// Error processing directory: ${error.message}\n`;
     }
 
     return output;
@@ -1105,6 +1147,8 @@ function FileExplorer() {
 
       // Smooth scroll animation
       const scrollTo = (element, to, duration) => {
+        if (!element) return;
+
         const start = element.scrollTop;
         const change = to - start;
         const increment = 20;
@@ -1137,7 +1181,7 @@ function FileExplorer() {
 
   // Function to highlight search results safely (maintaining HTML escaping)
   const highlightSearchResults = (text, query, results, currentIndex) => {
-    if (!query || results.length === 0) return text;
+    if (!query || !results || results.length === 0) return text;
 
     let highlightedText = "";
     let lastIndex = 0;
