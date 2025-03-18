@@ -2,36 +2,12 @@ import React, { useState, useRef, useEffect } from "react";
 import "./FileExplorer.css";
 import hljs from "highlight.js";
 import "highlight.js/styles/atom-one-dark.css";
+import { countTokens, compareTokenCounts } from "../utils/tokenizer";
 
 // Icon components for folder tree
 const FolderIcon = () => <span className="folder-icon">📁</span>;
 const FileIcon = () => <span className="file-icon">📄</span>;
 const ChevronRight = () => <span>▶</span>;
-
-// Simple token estimation function - counts approximately 4 characters per token
-const estimateTokens = (text) => {
-  if (!text) return 0;
-  // A simple approximation based on character count
-  // On average, 1 token ~= 4 characters in English text
-  return Math.ceil(text.length / 4);
-};
-
-// More accurate token estimation based on words and punctuation
-const estimateTokensAccurate = (text) => {
-  if (!text) return 0;
-
-  // Count words
-  const words = text.split(/\s+/).filter((word) => word.length > 0).length;
-
-  // Count punctuation and special characters
-  const punctuation = (text.match(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g) || []).length;
-
-  // Count numbers
-  const numbers = (text.match(/\d+/g) || []).length;
-
-  // Estimate: each word is roughly 1.3 tokens, numbers and punctuation are ~1 token each
-  return Math.ceil(words * 1.3 + punctuation + numbers);
-};
 
 // Token optimization functions
 const tokenOptimizers = {
@@ -72,7 +48,7 @@ const FolderTree = ({
   onToggleFolder,
   searchTerm = "",
 }) => {
-  // Move useEffect hook before any conditional returns
+  // Search-related useEffect
   useEffect(() => {
     if (searchTerm && onToggleFolder) {
       const pathsToExpand = [];
@@ -353,18 +329,16 @@ function FileExplorer() {
       const optimized = optimizeTokens(fileStructure);
       setOptimizedFileStructure(optimized);
 
-      // Update token statistics
-      const originalTokens = estimateTokensAccurate(fileStructure);
-      const optimizedTokens = estimateTokensAccurate(optimized);
-      const reduction =
-        originalTokens > 0
-          ? ((originalTokens - optimizedTokens) / originalTokens) * 100
-          : 0;
+      // Update token statistics using the new tokenizer
+      const { originalCount, optimizedCount, reduction } = compareTokenCounts(
+        fileStructure,
+        optimized
+      );
 
       setFileStats((prev) => ({
         ...prev,
-        totalTokens: originalTokens,
-        totalTokensOptimized: optimizedTokens,
+        totalTokens: originalCount,
+        totalTokensOptimized: optimizedCount,
         tokenReduction: reduction,
       }));
     }
@@ -1045,18 +1019,16 @@ function FileExplorer() {
       setOptimizedFileStructure(optimized);
 
       // Calculate token statistics
-      const originalTokens = estimateTokensAccurate(result);
-      const optimizedTokens = estimateTokensAccurate(optimized);
-      const reduction =
-        originalTokens > 0
-          ? ((originalTokens - optimizedTokens) / originalTokens) * 100
-          : 0;
+      const { originalCount, optimizedCount, reduction } = compareTokenCounts(
+        result,
+        optimized
+      );
 
       // Update token statistics
       setFileStats((prev) => ({
         ...prev,
-        totalTokens: originalTokens,
-        totalTokensOptimized: optimizedTokens,
+        totalTokens: originalCount,
+        totalTokensOptimized: optimizedCount,
         tokenReduction: reduction,
       }));
 
@@ -1134,19 +1106,17 @@ function FileExplorer() {
       const optimized = optimizeTokens(result);
       setOptimizedFileStructure(optimized);
 
-      // Calculate token statistics
-      const originalTokens = estimateTokensAccurate(result);
-      const optimizedTokens = estimateTokensAccurate(optimized);
-      const reduction =
-        originalTokens > 0
-          ? ((originalTokens - optimizedTokens) / originalTokens) * 100
-          : 0;
+      // Calculate token statistics using the new tokenizer
+      const { originalCount, optimizedCount, reduction } = compareTokenCounts(
+        result,
+        optimized
+      );
 
       // Update token statistics
       setFileStats((prev) => ({
         ...prev,
-        totalTokens: originalTokens,
-        totalTokensOptimized: optimizedTokens,
+        totalTokens: originalCount,
+        totalTokensOptimized: optimizedCount,
         tokenReduction: reduction,
       }));
     } catch (error) {
