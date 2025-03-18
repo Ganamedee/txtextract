@@ -46,22 +46,34 @@ const ThemeToggle = () => {
 function App() {
   const [showAbout, setShowAbout] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showAiInfo, setShowAiInfo] = useState(false);
   const [closingAbout, setClosingAbout] = useState(false);
   const [closingFeedback, setClosingFeedback] = useState(false);
+  const [closingAiInfo, setClosingAiInfo] = useState(false);
 
   const aboutRef = useRef(null);
   const feedbackRef = useRef(null);
+  const aiInfoRef = useRef(null);
 
   // Improved toggle functions for about and feedback panels with proper animations
   const toggleAbout = () => {
-    if (showFeedback) {
-      // First close feedback then open about
-      setClosingFeedback(true);
-      setTimeout(() => {
-        setShowFeedback(false);
-        setClosingFeedback(false);
-        setShowAbout(true);
-      }, 300); // Match animation duration
+    if (showFeedback || showAiInfo) {
+      // First close feedback/AI info then open about
+      if (showFeedback) {
+        setClosingFeedback(true);
+        setTimeout(() => {
+          setShowFeedback(false);
+          setClosingFeedback(false);
+          setShowAbout(true);
+        }, 300); // Match animation duration
+      } else {
+        setClosingAiInfo(true);
+        setTimeout(() => {
+          setShowAiInfo(false);
+          setClosingAiInfo(false);
+          setShowAbout(true);
+        }, 300); // Match animation duration
+      }
     } else if (showAbout) {
       // Close the about panel with animation
       setClosingAbout(true);
@@ -77,14 +89,23 @@ function App() {
   };
 
   const toggleFeedback = () => {
-    if (showAbout) {
-      // First close about then open feedback
-      setClosingAbout(true);
-      setTimeout(() => {
-        setShowAbout(false);
-        setClosingAbout(false);
-        setShowFeedback(true);
-      }, 300); // Match animation duration
+    if (showAbout || showAiInfo) {
+      // First close about/AI info then open feedback
+      if (showAbout) {
+        setClosingAbout(true);
+        setTimeout(() => {
+          setShowAbout(false);
+          setClosingAbout(false);
+          setShowFeedback(true);
+        }, 300); // Match animation duration
+      } else {
+        setClosingAiInfo(true);
+        setTimeout(() => {
+          setShowAiInfo(false);
+          setClosingAiInfo(false);
+          setShowFeedback(true);
+        }, 300); // Match animation duration
+      }
     } else if (showFeedback) {
       // Close the feedback panel with animation
       setClosingFeedback(true);
@@ -96,6 +117,39 @@ function App() {
       // Open the feedback panel
       setShowFeedback(true);
       setClosingFeedback(false);
+    }
+  };
+
+  // New toggle function for AI info panel
+  const toggleAiInfo = () => {
+    if (showAbout || showFeedback) {
+      // First close about/feedback then open AI info
+      if (showAbout) {
+        setClosingAbout(true);
+        setTimeout(() => {
+          setShowAbout(false);
+          setClosingAbout(false);
+          setShowAiInfo(true);
+        }, 300); // Match animation duration
+      } else {
+        setClosingFeedback(true);
+        setTimeout(() => {
+          setShowFeedback(false);
+          setClosingFeedback(false);
+          setShowAiInfo(true);
+        }, 300); // Match animation duration
+      }
+    } else if (showAiInfo) {
+      // Close the AI info panel with animation
+      setClosingAiInfo(true);
+      setTimeout(() => {
+        setShowAiInfo(false);
+        setClosingAiInfo(false);
+      }, 300); // Match animation duration
+    } else {
+      // Open the AI info panel
+      setShowAiInfo(true);
+      setClosingAiInfo(false);
     }
   };
 
@@ -116,10 +170,17 @@ function App() {
       ) {
         toggleFeedback();
       }
+      if (
+        showAiInfo &&
+        aiInfoRef.current &&
+        !aiInfoRef.current.contains(event.target)
+      ) {
+        toggleAiInfo();
+      }
     };
 
     // Add when panel is open
-    if (showAbout || showFeedback) {
+    if (showAbout || showFeedback || showAiInfo) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
@@ -127,7 +188,7 @@ function App() {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showAbout, showFeedback]);
+  }, [showAbout, showFeedback, showAiInfo]);
 
   return (
     <div className="App">
@@ -152,6 +213,13 @@ function App() {
             aria-label="Feedback"
           >
             Feedback
+          </button>
+          <button
+            className="nav-button"
+            onClick={toggleAiInfo}
+            aria-label="AI Tokens"
+          >
+            AI Tokens
           </button>
           <ThemeToggle />
         </div>
@@ -189,6 +257,7 @@ function App() {
               <li>Download in multiple formats (TXT, MD, HTML, JSON)</li>
               <li>Search across all files</li>
               <li>View file statistics and breakdowns</li>
+              <li>Token estimation and optimization for AI tools</li>
             </ul>
             <button className="close-button" onClick={toggleAbout}>
               Close
@@ -243,6 +312,94 @@ function App() {
               </li>
             </ul>
             <button className="close-button" onClick={toggleFeedback}>
+              Close
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* New AI Info panel */}
+      <div
+        className={`info-panel global-panel ${showAiInfo ? "show" : ""} ${
+          closingAiInfo ? "closing" : ""
+        }`}
+      >
+        {(showAiInfo || closingAiInfo) && (
+          <div
+            ref={aiInfoRef}
+            className={`about-panel ${closingAiInfo ? "closing" : ""}`}
+          >
+            <h3>AI Token Information</h3>
+            <p>
+              TxtExtract now includes token counting and optimization features
+              designed specifically for use with AI tools like ChatGPT, Claude,
+              and others.
+            </p>
+
+            <h4>What are tokens?</h4>
+            <p>
+              Tokens are the basic units that AI models process text with. A
+              token can be as short as one character or as long as one word. In
+              English, one token is approximately 4 characters or 0.75 words.
+            </p>
+
+            <h4>Token limits for popular AI models:</h4>
+            <ul>
+              <li>
+                <strong>GPT-3.5 Turbo:</strong> 16,385 tokens
+              </li>
+              <li>
+                <strong>GPT-4:</strong> 8,192 tokens per request
+              </li>
+              <li>
+                <strong>GPT-4-32k:</strong> 32,768 tokens
+              </li>
+              <li>
+                <strong>Claude 2:</strong> 100,000 tokens
+              </li>
+              <li>
+                <strong>Claude Instant:</strong> 100,000 tokens
+              </li>
+              <li>
+                <strong>Gemini Pro:</strong> 32,768 tokens
+              </li>
+            </ul>
+
+            <h4>Token Optimization Features:</h4>
+            <p>
+              TxtExtract can significantly reduce the number of tokens in your
+              file structure:
+            </p>
+            <ul>
+              <li>
+                <strong>Remove extra whitespace:</strong> Consolidates multiple
+                spaces into single spaces
+              </li>
+              <li>
+                <strong>Reduce consecutive newlines:</strong> Limits multiple
+                blank lines
+              </li>
+              <li>
+                <strong>Remove indentation:</strong> Eliminates leading
+                whitespace in each line
+              </li>
+              <li>
+                <strong>Simplify comment headers:</strong> Shortens comment
+                headers in the output
+              </li>
+              <li>
+                <strong>Remove empty lines:</strong> Removes lines that contain
+                only whitespace
+              </li>
+            </ul>
+
+            <p>
+              These optimizations can typically reduce token counts by 15-30%
+              while maintaining readability for AI models. The token count
+              estimate is visible in the Statistics panel.
+            </p>
+
+            <button className="close-button" onClick={toggleAiInfo}>
               Close
             </button>
           </div>

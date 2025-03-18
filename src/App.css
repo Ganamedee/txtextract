@@ -1,3 +1,5 @@
+/* Add these styles to App.css */
+
 .App {
   text-align: center;
   display: flex;
@@ -224,6 +226,25 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* New styles for AI Info panel */
+.global-panel .about-panel h4 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.5rem;
+}
+
+.global-panel .about-panel ul {
+  margin-bottom: 1.5rem;
+}
+
+.global-panel .about-panel li {
+  margin-bottom: 0.3rem;
+  line-height: 1.5;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .App-header {
@@ -251,5 +272,17 @@
     right: 0.5rem;
     width: auto;
     justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .nav-button {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+
+  .global-panel {
+    max-width: 95%;
+    top: 70px;
   }
 }

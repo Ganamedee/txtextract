@@ -8,6 +8,61 @@ const FolderIcon = () => <span className="folder-icon">📁</span>;
 const FileIcon = () => <span className="file-icon">📄</span>;
 const ChevronRight = () => <span>▶</span>;
 
+// Simple token estimation function - counts approximately 4 characters per token
+const estimateTokens = (text) => {
+  if (!text) return 0;
+  // A simple approximation based on character count
+  // On average, 1 token ~= 4 characters in English text
+  return Math.ceil(text.length / 4);
+};
+
+// More accurate token estimation based on words and punctuation
+const estimateTokensAccurate = (text) => {
+  if (!text) return 0;
+
+  // Count words
+  const words = text.split(/\s+/).filter((word) => word.length > 0).length;
+
+  // Count punctuation and special characters
+  const punctuation = (text.match(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g) || []).length;
+
+  // Count numbers
+  const numbers = (text.match(/\d+/g) || []).length;
+
+  // Estimate: each word is roughly 1.3 tokens, numbers and punctuation are ~1 token each
+  return Math.ceil(words * 1.3 + punctuation + numbers);
+};
+
+// Token optimization functions
+const tokenOptimizers = {
+  removeExtraWhitespace: (text) => {
+    // Replace multiple spaces with a single space
+    return text.replace(/[ \t]+/g, " ");
+  },
+
+  removeExtraNewlines: (text) => {
+    // Replace 3 or more consecutive newlines with 2 newlines
+    return text.replace(/\n{3,}/g, "\n\n");
+  },
+
+  removeIndentation: (text) => {
+    // Remove leading whitespace at the beginning of each line
+    return text.replace(/^[ \t]+/gm, "");
+  },
+
+  simplifyComments: (text) => {
+    // Replace lengthy comment markers with simpler ones
+    return text
+      .replace(/\/\/ Detailed File Contents:/g, "// Contents:")
+      .replace(/\/\/ Full Directory Structure:/g, "// Structure:");
+  },
+
+  removeEmptyLines: (text) => {
+    // Remove lines that are empty or contain only whitespace
+    return text.replace(/^\s*[\r\n]/gm, "");
+  },
+};
+
 // Custom folder tree component for specific file/folder exclusion
 const FolderTree = ({
   structure,
@@ -188,6 +243,16 @@ const FolderTree = ({
 
 function FileExplorer() {
   const [fileStructure, setFileStructure] = useState("");
+  const [optimizedFileStructure, setOptimizedFileStructure] = useState("");
+  const [tokenOptimizationEnabled, setTokenOptimizationEnabled] =
+    useState(false);
+
+  // Token optimization options
+  const [removeWhitespace, setRemoveWhitespace] = useState(true);
+  const [removeNewlines, setRemoveNewlines] = useState(true);
+  const [removeIndentation, setRemoveIndentation] = useState(true);
+  const [simplifyComments, setSimplifyComments] = useState(true);
+  const [removeEmptyLines, setRemoveEmptyLines] = useState(true);
 
   // Exclusion options - expanded with more default folders
   const [includeGit, setIncludeGit] = useState(false);
@@ -213,6 +278,7 @@ function FileExplorer() {
   const [exportFormat, setExportFormat] = useState("txt");
   const [folderName, setFolderName] = useState("");
   const [showExclusions, setShowExclusions] = useState(false);
+  const [showTokenOptions, setShowTokenOptions] = useState(false);
 
   // Custom folder/file exclusion states
   const [folderStructure, setFolderStructure] = useState({});
@@ -232,6 +298,9 @@ function FileExplorer() {
     totalLines: 0,
     totalCharacters: 0,
     totalWords: 0,
+    totalTokens: 0, // New stat for token count
+    totalTokensOptimized: 0, // New stat for optimized token count
+    tokenReduction: 0, // New stat for token reduction percentage
   });
 
   // Search states
@@ -245,10 +314,68 @@ function FileExplorer() {
   // Refs
   const outputRef = useRef(null);
   const exclusionsRef = useRef(null);
+  const tokenOptionsRef = useRef(null);
   const searchResultRefs = useRef([]);
   const customExclusionsRef = useRef(null);
   const statsIconRef = useRef(null);
   const statsContainerRef = useRef(null);
+
+  // Apply token optimizations to text
+  const optimizeTokens = (text) => {
+    let optimized = text;
+
+    if (removeWhitespace) {
+      optimized = tokenOptimizers.removeExtraWhitespace(optimized);
+    }
+
+    if (removeNewlines) {
+      optimized = tokenOptimizers.removeExtraNewlines(optimized);
+    }
+
+    if (removeIndentation) {
+      optimized = tokenOptimizers.removeIndentation(optimized);
+    }
+
+    if (simplifyComments) {
+      optimized = tokenOptimizers.simplifyComments(optimized);
+    }
+
+    if (removeEmptyLines) {
+      optimized = tokenOptimizers.removeEmptyLines(optimized);
+    }
+
+    return optimized;
+  };
+
+  // Effect to apply token optimizations when options change
+  useEffect(() => {
+    if (fileStructure) {
+      const optimized = optimizeTokens(fileStructure);
+      setOptimizedFileStructure(optimized);
+
+      // Update token statistics
+      const originalTokens = estimateTokensAccurate(fileStructure);
+      const optimizedTokens = estimateTokensAccurate(optimized);
+      const reduction =
+        originalTokens > 0
+          ? ((originalTokens - optimizedTokens) / originalTokens) * 100
+          : 0;
+
+      setFileStats((prev) => ({
+        ...prev,
+        totalTokens: originalTokens,
+        totalTokensOptimized: optimizedTokens,
+        tokenReduction: reduction,
+      }));
+    }
+  }, [
+    fileStructure,
+    removeWhitespace,
+    removeNewlines,
+    removeIndentation,
+    simplifyComments,
+    removeEmptyLines,
+  ]);
 
   // Use effect for exclusion panel animation height calculation
   useEffect(() => {
@@ -260,6 +387,17 @@ function FileExplorer() {
       }
     }
   }, [showExclusions]);
+
+  // Use effect for token options panel animation
+  useEffect(() => {
+    if (tokenOptionsRef.current) {
+      if (showTokenOptions) {
+        tokenOptionsRef.current.style.maxHeight = `${tokenOptionsRef.current.scrollHeight}px`;
+      } else {
+        tokenOptionsRef.current.style.maxHeight = "0";
+      }
+    }
+  }, [showTokenOptions]);
 
   // Handle key press for search navigation
   useEffect(() => {
@@ -297,6 +435,11 @@ function FileExplorer() {
       // End icon animation after the state change is complete
       setTimeout(() => setStatsIconAnimating(false), 300);
     }
+  };
+
+  // Toggle token optimization
+  const toggleTokenOptimization = () => {
+    setTokenOptimizationEnabled(!tokenOptimizationEnabled);
   };
 
   // Check if the File System Access API is supported
@@ -491,6 +634,9 @@ function FileExplorer() {
       totalLines: 0,
       totalCharacters: 0,
       totalWords: 0,
+      totalTokens: 0,
+      totalTokensOptimized: 0,
+      tokenReduction: 0,
     };
 
     await processDirectoryStats(dirHandle, path, options, stats);
@@ -838,6 +984,8 @@ function FileExplorer() {
   const handleFolderSelect = async () => {
     // Reset states
     setFileStructure("");
+    setOptimizedFileStructure("");
+    setTokenOptimizationEnabled(false);
     setError("");
     setProcessedFiles(0);
     setTotalFiles(0);
@@ -892,6 +1040,26 @@ function FileExplorer() {
       const result = await processDirectory(dirHandle, "", options);
       setFileStructure(result);
 
+      // Apply token optimizations to get optimized structure
+      const optimized = optimizeTokens(result);
+      setOptimizedFileStructure(optimized);
+
+      // Calculate token statistics
+      const originalTokens = estimateTokensAccurate(result);
+      const optimizedTokens = estimateTokensAccurate(optimized);
+      const reduction =
+        originalTokens > 0
+          ? ((originalTokens - optimizedTokens) / originalTokens) * 100
+          : 0;
+
+      // Update token statistics
+      setFileStats((prev) => ({
+        ...prev,
+        totalTokens: originalTokens,
+        totalTokensOptimized: optimizedTokens,
+        tokenReduction: reduction,
+      }));
+
       // Build folder structure for potential later customization - FIXED: added loading indicator
       setBuildingFolderStructure(true);
 
@@ -929,6 +1097,7 @@ function FileExplorer() {
 
     setLoading(true);
     setFileStructure("");
+    setOptimizedFileStructure("");
     setError("");
     setProcessedFiles(0);
     setTotalFiles(0);
@@ -960,6 +1129,26 @@ function FileExplorer() {
       // Process the directory
       const result = await processDirectory(selectedDirHandle, "", options);
       setFileStructure(result);
+
+      // Apply token optimizations to get optimized structure
+      const optimized = optimizeTokens(result);
+      setOptimizedFileStructure(optimized);
+
+      // Calculate token statistics
+      const originalTokens = estimateTokensAccurate(result);
+      const optimizedTokens = estimateTokensAccurate(optimized);
+      const reduction =
+        originalTokens > 0
+          ? ((originalTokens - optimizedTokens) / originalTokens) * 100
+          : 0;
+
+      // Update token statistics
+      setFileStats((prev) => ({
+        ...prev,
+        totalTokens: originalTokens,
+        totalTokensOptimized: optimizedTokens,
+        tokenReduction: reduction,
+      }));
     } catch (error) {
       console.error("Error processing folder:", error);
       setError(
@@ -1111,11 +1300,16 @@ function FileExplorer() {
     const query = searchQuery.toLowerCase();
     const results = [];
 
+    // Determine which text to search - original or optimized
+    const textToSearch = tokenOptimizationEnabled
+      ? optimizedFileStructure
+      : fileStructure;
+
     // Find all occurrences of the search query
-    let index = fileStructure.toLowerCase().indexOf(query);
+    let index = textToSearch.toLowerCase().indexOf(query);
     while (index !== -1) {
       results.push(index);
-      index = fileStructure.toLowerCase().indexOf(query, index + 1);
+      index = textToSearch.toLowerCase().indexOf(query, index + 1);
     }
 
     setSearchResults(results);
@@ -1168,7 +1362,13 @@ function FileExplorer() {
     } else {
       // Fallback to old method if marks aren't found (during initial render)
       const startIndex = searchResults[resultIndex];
-      const preText = fileStructure.substring(0, startIndex);
+
+      // Determine which text to search - original or optimized
+      const textToSearch = tokenOptimizationEnabled
+        ? optimizedFileStructure
+        : fileStructure;
+
+      const preText = textToSearch.substring(0, startIndex);
       const lineBreaks = (preText.match(/\n/g) || []).length;
       const lineHeight = 18; // Approximate line height
       const scrollPosition = lineHeight * lineBreaks;
@@ -1268,7 +1468,13 @@ function FileExplorer() {
     const filename = folderName
       ? `${folderName}_structure.txt`
       : "file_structure.txt";
-    const blob = new Blob([fileStructure], { type: "text/plain" });
+
+    // Use optimized version if token optimization is enabled
+    const contentToExport = tokenOptimizationEnabled
+      ? optimizedFileStructure
+      : fileStructure;
+
+    const blob = new Blob([contentToExport], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -1285,11 +1491,16 @@ function FileExplorer() {
       ? `${folderName}_structure.md`
       : "file_structure.md";
 
+    // Use optimized version if token optimization is enabled
+    const textToUse = tokenOptimizationEnabled
+      ? optimizedFileStructure
+      : fileStructure;
+
     // Convert the output to markdown format
     let mdContent = `# ${folderName || "File"} Structure\n\n`;
 
     // Get the tree structure part
-    const treeStructureMatch = fileStructure.match(
+    const treeStructureMatch = textToUse.match(
       /\/\/ Full Directory Structure:\n([\s\S]*?)\/\/ Detailed File Contents:/
     );
     if (treeStructureMatch && treeStructureMatch[1]) {
@@ -1311,6 +1522,14 @@ function FileExplorer() {
       mdContent += `- Total Lines: ${fileStats.totalLines.toLocaleString()}\n`;
       mdContent += `- Total Characters: ${fileStats.totalCharacters.toLocaleString()}\n`;
       mdContent += `- Total Words: ${fileStats.totalWords.toLocaleString()}\n`;
+      mdContent += `- Estimated Tokens: ${fileStats.totalTokens.toLocaleString()}\n`;
+
+      if (tokenOptimizationEnabled) {
+        mdContent += `- Optimized Tokens: ${fileStats.totalTokensOptimized.toLocaleString()} (${fileStats.tokenReduction.toFixed(
+          1
+        )}% reduction)\n`;
+      }
+
       mdContent += `- Largest File: ${fileStats.largestFile.name} (${(
         fileStats.largestFile.size / 1024
       ).toFixed(2)} KB)\n\n`;
@@ -1334,7 +1553,7 @@ function FileExplorer() {
       /\/\/ File: (.*)\n([\s\S]*?)(?=\/\/ File:|\/\/ Directory:|$)/g;
     let match;
 
-    while ((match = fileRegex.exec(fileStructure)) !== null) {
+    while ((match = fileRegex.exec(textToUse)) !== null) {
       const filePath = match[1];
       const content = match[2].trim();
 
@@ -1366,6 +1585,11 @@ function FileExplorer() {
     const filename = folderName
       ? `${folderName}_structure.html`
       : "file_structure.html";
+
+    // Use optimized version if token optimization is enabled
+    const textToUse = tokenOptimizationEnabled
+      ? optimizedFileStructure
+      : fileStructure;
 
     // Create a styled HTML document
     let htmlContent = `
@@ -1447,6 +1671,11 @@ function FileExplorer() {
       color: #888;
       font-style: italic;
     }
+    .token-stats {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid #eaecef;
+    }
   </style>
 </head>
 <body>
@@ -1454,7 +1683,7 @@ function FileExplorer() {
 `;
 
     // Get the tree structure part
-    const treeStructureMatch = fileStructure.match(
+    const treeStructureMatch = textToUse.match(
       /\/\/ Full Directory Structure:\n([\s\S]*?)\/\/ Detailed File Contents:/
     );
     if (treeStructureMatch && treeStructureMatch[1]) {
@@ -1512,6 +1741,27 @@ function FileExplorer() {
       </div>
     </div>
     
+    <div class="token-stats">
+      <h3>Token Statistics</h3>
+      <div>
+        <strong>Estimated Tokens:</strong> ${fileStats.totalTokens.toLocaleString()}
+      </div>
+      ${
+        tokenOptimizationEnabled
+          ? `
+      <div>
+        <strong>Optimized Tokens:</strong> ${fileStats.totalTokensOptimized.toLocaleString()}
+      </div>
+      <div>
+        <strong>Token Reduction:</strong> ${fileStats.tokenReduction.toFixed(
+          1
+        )}%
+      </div>
+      `
+          : ""
+      }
+    </div>
+    
     <div class="file-types">
       <h3>File Types</h3>
       <ul>
@@ -1539,7 +1789,7 @@ function FileExplorer() {
       /\/\/ (File|Directory): (.*)\n([\s\S]*?)(?=\/\/ (File|Directory):|$)/g;
     let match;
 
-    while ((match = contentRegex.exec(fileStructure)) !== null) {
+    while ((match = contentRegex.exec(textToUse)) !== null) {
       const type = match[1]; // File or Directory
       const path = match[2];
       const content = match[3].trim();
@@ -1593,6 +1843,11 @@ function FileExplorer() {
       ? `${folderName}_structure.json`
       : "file_structure.json";
 
+    // Use optimized version if token optimization is enabled
+    const textToUse = tokenOptimizationEnabled
+      ? optimizedFileStructure
+      : fileStructure;
+
     // Parse the file structure into a JSON object
     const jsonStructure = {
       name: folderName || "Unknown Folder",
@@ -1602,7 +1857,7 @@ function FileExplorer() {
     };
 
     // Get the tree structure
-    const treeStructureMatch = fileStructure.match(
+    const treeStructureMatch = textToUse.match(
       /\/\/ Full Directory Structure:\n([\s\S]*?)\/\/ Detailed File Contents:/
     );
     if (treeStructureMatch && treeStructureMatch[1]) {
@@ -1615,7 +1870,7 @@ function FileExplorer() {
     let match;
 
     // Find all files and their content
-    while ((match = fileRegex.exec(fileStructure)) !== null) {
+    while ((match = fileRegex.exec(textToUse)) !== null) {
       const filePath = match[1];
       const content = match[2].trim();
 
@@ -1903,6 +2158,133 @@ function FileExplorer() {
           </div>
         </div>
 
+        {/* New: Toggle button for token optimization options */}
+        {fileStructure && (
+          <div className="options-toggle">
+            <button
+              className={`toggle-button ${showTokenOptions ? "active" : ""}`}
+              onClick={() => setShowTokenOptions(!showTokenOptions)}
+            >
+              <span className="toggle-icon">
+                {showTokenOptions ? "−" : "+"}
+              </span>
+              Token Optimization Options
+            </button>
+          </div>
+        )}
+
+        {/* Collapsible token optimization options */}
+        {fileStructure && (
+          <div
+            className="exclusion-wrapper"
+            ref={tokenOptionsRef}
+            style={{
+              maxHeight: showTokenOptions
+                ? `${tokenOptionsRef.current?.scrollHeight}px`
+                : "0",
+              overflow: "hidden",
+              transition: "max-height 0.3s ease-in-out",
+            }}
+          >
+            <div className="options-section">
+              <div className="token-optimization-options">
+                <div className="token-optimization-toggle">
+                  <label className="checkbox token-optimization-label">
+                    <input
+                      type="checkbox"
+                      checked={tokenOptimizationEnabled}
+                      onChange={toggleTokenOptimization}
+                      disabled={loading}
+                    />
+                    <span className="toggle-label">
+                      Enable Token Optimization
+                    </span>
+                  </label>
+                  {tokenOptimizationEnabled && (
+                    <div className="token-reduction-info">
+                      {fileStats.tokenReduction > 0 ? (
+                        <span className="token-reduction-positive">
+                          {fileStats.tokenReduction.toFixed(1)}% reduction (
+                          {fileStats.totalTokens.toLocaleString()} →{" "}
+                          {fileStats.totalTokensOptimized.toLocaleString()}{" "}
+                          tokens)
+                        </span>
+                      ) : (
+                        <span>No reduction achieved</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="exclusion-category">
+                  <h5>Optimization Options</h5>
+                  <div className="exclusion-options">
+                    <label className="checkbox">
+                      <input
+                        type="checkbox"
+                        checked={removeWhitespace}
+                        onChange={() => setRemoveWhitespace(!removeWhitespace)}
+                        disabled={loading || !tokenOptimizationEnabled}
+                      />
+                      Remove extra whitespace
+                    </label>
+
+                    <label className="checkbox">
+                      <input
+                        type="checkbox"
+                        checked={removeNewlines}
+                        onChange={() => setRemoveNewlines(!removeNewlines)}
+                        disabled={loading || !tokenOptimizationEnabled}
+                      />
+                      Reduce consecutive newlines
+                    </label>
+
+                    <label className="checkbox">
+                      <input
+                        type="checkbox"
+                        checked={removeIndentation}
+                        onChange={() =>
+                          setRemoveIndentation(!removeIndentation)
+                        }
+                        disabled={loading || !tokenOptimizationEnabled}
+                      />
+                      Remove indentation
+                    </label>
+
+                    <label className="checkbox">
+                      <input
+                        type="checkbox"
+                        checked={simplifyComments}
+                        onChange={() => setSimplifyComments(!simplifyComments)}
+                        disabled={loading || !tokenOptimizationEnabled}
+                      />
+                      Simplify comment headers
+                    </label>
+
+                    <label className="checkbox">
+                      <input
+                        type="checkbox"
+                        checked={removeEmptyLines}
+                        onChange={() => setRemoveEmptyLines(!removeEmptyLines)}
+                        disabled={loading || !tokenOptimizationEnabled}
+                      />
+                      Remove empty lines
+                    </label>
+                  </div>
+                </div>
+
+                <div className="token-optimization-info">
+                  <p>
+                    These optimizations help reduce token count for AI models
+                    while maintaining readability. Enabling optimization will
+                    update the display and export files.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Customize Files/Folders Button - only show when files have been processed */}
         {fileStructure && !showCustomExclusions && !loading && (
           <div className="customize-button-container">
@@ -2067,6 +2449,32 @@ function FileExplorer() {
                     {(fileStats.largestFile.size / 1024).toFixed(2)} KB)
                   </span>
                 </div>
+
+                {/* Add new token statistics */}
+                <div className="stat-item token-stats-item">
+                  <span className="stat-label">Estimated Tokens:</span>
+                  <span className="stat-value">
+                    {fileStats.totalTokens.toLocaleString()}
+                  </span>
+                </div>
+
+                {tokenOptimizationEnabled && (
+                  <>
+                    <div className="stat-item token-stats-item">
+                      <span className="stat-label">Optimized Tokens:</span>
+                      <span className="stat-value">
+                        {fileStats.totalTokensOptimized.toLocaleString()}
+                      </span>
+                    </div>
+
+                    <div className="stat-item token-stats-item">
+                      <span className="stat-label">Token Reduction:</span>
+                      <span className="stat-value">
+                        {fileStats.tokenReduction.toFixed(1)}%
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <h4>File Types</h4>
@@ -2100,6 +2508,28 @@ function FileExplorer() {
                     </div>
                   ))}
               </div>
+
+              {/* Add information about token estimation */}
+              <div className="token-estimation-info">
+                <h4>About Token Estimation</h4>
+                <p>
+                  Tokens are the processing units for AI models like GPT.
+                  Estimates are based on average token calculations and may vary
+                  slightly from actual values used by AI services. Tokens
+                  generally correlate to ~4 characters or ~0.75 words in English
+                  text.
+                </p>
+                <p>
+                  <strong>Model Token Limits (for reference):</strong>
+                </p>
+                <ul className="model-token-limits">
+                  <li>GPT-3.5 Turbo: 16,385 tokens</li>
+                  <li>GPT-4: 8,192 tokens</li>
+                  <li>GPT-4-32k: 32,768 tokens</li>
+                  <li>Claude 2: 100,000 tokens</li>
+                  <li>Claude Instant: 100,000 tokens</li>
+                </ul>
+              </div>
             </>
           )}
         </div>
@@ -2112,6 +2542,9 @@ function FileExplorer() {
               {folderName
                 ? `${folderName} Structure`
                 : "Extracted File Structure"}
+              {tokenOptimizationEnabled && (
+                <span className="optimized-label"> (Optimized)</span>
+              )}
             </h2>
 
             <div className="search-container">
@@ -2162,11 +2595,15 @@ function FileExplorer() {
               __html:
                 fileStructure && searchQuery && searchResults.length > 0
                   ? highlightSearchResults(
-                      fileStructure,
+                      tokenOptimizationEnabled
+                        ? optimizedFileStructure
+                        : fileStructure,
                       searchQuery,
                       searchResults,
                       currentResultIndex
                     )
+                  : tokenOptimizationEnabled
+                  ? optimizedFileStructure
                   : fileStructure,
             }}
           ></pre>

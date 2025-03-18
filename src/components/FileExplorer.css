@@ -1301,3 +1301,140 @@ mark.current-match {
     justify-content: space-between;
   }
 }
+
+/* Add these new CSS rules to src/components/FileExplorer.css */
+
+/* Token optimization panel and UI elements */
+.token-optimization-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  animation: slideDown 0.3s ease-in-out;
+}
+
+.token-optimization-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  transition: background-color 0.3s ease;
+}
+
+.token-optimization-toggle:hover {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.token-optimization-label {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.toggle-label {
+  margin-left: 8px;
+}
+
+.token-reduction-info {
+  padding: 0.4rem 0.8rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.token-reduction-positive {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.token-optimization-info {
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.token-optimization-info p {
+  margin: 0 0 0.75rem;
+}
+
+.token-optimization-info p:last-child {
+  margin-bottom: 0;
+}
+
+/* Token stats in statistics panel */
+.token-stats-item {
+  background: rgba(79, 70, 229, 0.1);
+  border-left: 3px solid var(--color-button-primary);
+}
+
+.token-estimation-info {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+}
+
+.token-estimation-info h4 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+}
+
+.token-estimation-info p {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 0.75rem;
+}
+
+.model-token-limits {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.5rem;
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.model-token-limits li {
+  font-size: 0.9rem;
+}
+
+/* Optimized label for the file structure title */
+.optimized-label {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  font-style: italic;
+  margin-left: 0.5rem;
+  font-weight: normal;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .token-optimization-toggle {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .token-optimization-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .token-reduction-positive {
+  color: #34d399;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .token-optimization-toggle {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .token-reduction-info {
+    width: 100%;
+  }
+
+  .model-token-limits {
+    grid-template-columns: 1fr;
+  }
+}
