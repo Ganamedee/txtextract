@@ -9,32 +9,40 @@ const FolderIcon = () => <span className="folder-icon">📁</span>;
 const FileIcon = () => <span className="file-icon">📄</span>;
 const ChevronRight = () => <span>▶</span>;
 
-// Token optimization functions
+// Enhanced token optimization functions with more aggressive whitespace removal
 const tokenOptimizers = {
   removeExtraWhitespace: (text) => {
-    // Replace multiple spaces with a single space
-    return text.replace(/[ \t]+/g, " ");
+    // More aggressive whitespace removal
+    return text
+      .replace(/[ \t]+/g, " ") // Convert tabs and multiple spaces to single space
+      .replace(/\s+([.,;:!?])/g, "$1"); // Remove space before punctuation
   },
 
   removeExtraNewlines: (text) => {
-    // Replace 3 or more consecutive newlines with 2 newlines
-    return text.replace(/\n{3,}/g, "\n\n");
+    // More aggressive newline reduction
+    return text
+      .replace(/\n{3,}/g, "\n\n") // Replace 3+ consecutive newlines with 2
+      .replace(/\n\n\s*\n/g, "\n\n"); // Remove empty lines with whitespace
   },
 
   removeIndentation: (text) => {
-    // Remove leading whitespace at the beginning of each line
+    // Remove ALL indentation at the beginning of each line
     return text.replace(/^[ \t]+/gm, "");
   },
 
   simplifyComments: (text) => {
-    // Replace lengthy comment markers with simpler ones
+    // More aggressive comment simplification
     return text
       .replace(/\/\/ Detailed File Contents:/g, "// Contents:")
-      .replace(/\/\/ Full Directory Structure:/g, "// Structure:");
+      .replace(/\/\/ Full Directory Structure:/g, "// Structure:")
+      .replace(/\/\/ Directory: /g, "// Dir: ")
+      .replace(/\/\/ File: /g, "// ")
+      .replace(/\s*\[contents not included\]/g, "[omitted]")
+      .replace(/\s*\[not included\]/g, "[omitted]");
   },
 
   removeEmptyLines: (text) => {
-    // Remove lines that are empty or contain only whitespace
+    // Remove ALL empty or whitespace-only lines
     return text.replace(/^\s*[\r\n]/gm, "");
   },
 };
@@ -296,7 +304,7 @@ function FileExplorer() {
   const statsIconRef = useRef(null);
   const statsContainerRef = useRef(null);
 
-  // Apply token optimizations to text
+  // Apply token optimizations to text with enhanced whitespace handling
   const optimizeTokens = (text) => {
     let optimized = text;
 
@@ -320,20 +328,51 @@ function FileExplorer() {
       optimized = tokenOptimizers.removeEmptyLines(optimized);
     }
 
+    // Add a final pass to ensure maximum optimization
+    if (removeWhitespace || removeIndentation) {
+      // Remove any remaining excessive whitespace
+      optimized = optimized.replace(/[ \t]{2,}/g, " ");
+    }
+
     return optimized;
   };
 
   // Effect to apply token optimizations when options change
   useEffect(() => {
     if (fileStructure) {
+      // Apply optimizations and time them
+      console.time("Optimization");
       const optimized = optimizeTokens(fileStructure);
+      console.timeEnd("Optimization");
       setOptimizedFileStructure(optimized);
 
-      // Update token statistics using the new tokenizer
+      // Log some debugging info about the changes
+      console.log("Original length:", fileStructure.length);
+      console.log("Optimized length:", optimized.length);
+      console.log(
+        "Character reduction:",
+        fileStructure.length - optimized.length
+      );
+      console.log(
+        "Reduction %:",
+        (
+          ((fileStructure.length - optimized.length) / fileStructure.length) *
+          100
+        ).toFixed(2) + "%"
+      );
+
+      // Calculate token statistics with the improved tokenizer
       const { originalCount, optimizedCount, reduction } = compareTokenCounts(
         fileStructure,
         optimized
       );
+
+      // Log token statistics
+      console.log("Token counts:", {
+        originalCount,
+        optimizedCount,
+        reduction,
+      });
 
       setFileStats((prev) => ({
         ...prev,
@@ -1018,13 +1057,29 @@ function FileExplorer() {
       const optimized = optimizeTokens(result);
       setOptimizedFileStructure(optimized);
 
-      // Calculate token statistics
+      // Log debugging info
+      console.log("File structure size:", result.length);
+      console.log("Optimized size:", optimized.length);
+      console.log(
+        "Size reduction:",
+        result.length - optimized.length,
+        "characters"
+      );
+
+      // Calculate token statistics with the improved tokenizer
       const { originalCount, optimizedCount, reduction } = compareTokenCounts(
         result,
         optimized
       );
 
-      // Update token statistics
+      // Log token statistics
+      console.log("Token counts:", {
+        originalCount,
+        optimizedCount,
+        reduction,
+      });
+
+      // Update token statistics in file stats
       setFileStats((prev) => ({
         ...prev,
         totalTokens: originalCount,
@@ -1106,11 +1161,27 @@ function FileExplorer() {
       const optimized = optimizeTokens(result);
       setOptimizedFileStructure(optimized);
 
-      // Calculate token statistics using the new tokenizer
+      // Add debugging logs
+      console.log("File structure size:", result.length);
+      console.log("Optimized size:", optimized.length);
+      console.log(
+        "Size reduction:",
+        result.length - optimized.length,
+        "characters"
+      );
+
+      // Calculate token statistics with the improved tokenizer
       const { originalCount, optimizedCount, reduction } = compareTokenCounts(
         result,
         optimized
       );
+
+      // Log token statistics
+      console.log("Token counts:", {
+        originalCount,
+        optimizedCount,
+        reduction,
+      });
 
       // Update token statistics
       setFileStats((prev) => ({
