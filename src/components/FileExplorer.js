@@ -2833,9 +2833,7 @@ function FileExplorer() {
                 <option value="json">JSON (.json)</option>
               </select>
 
-              <button className="download-button" onClick={handleExport}>
-                Download File
-              </button>
+              
               <button
                 className="download-button" // Reuse existing style or create a new one
                 onClick={handleGenerateScript}
@@ -2843,6 +2841,9 @@ function FileExplorer() {
                 title="Generate a PowerShell script to recreate this structure"
               >
                 {generatingScript ? "Generating..." : "Generate PS Script"}
+              </button>
+              <button className="download-button" onClick={handleExport}>
+                Download File
               </button>
             </div>
           </div>
