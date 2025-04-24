@@ -8,6 +8,12 @@ import { countTokens, compareTokenCounts } from "../utils/tokenizer";
 const FolderIcon = () => <span className="folder-icon">📁</span>;
 const FileIcon = () => <span className="file-icon">📄</span>;
 const ChevronRight = () => <span>▶</span>;
+const escapePowerShellHereString = (content) => {
+  if (typeof content !== 'string') return '';
+  // In PowerShell literal Here-Strings (@'...'@), the only character
+  // that needs escaping is the single quote ('), which becomes ('').
+  return content.replace(/'/g, "''");
+};
 
 // Enhanced token optimization functions with more aggressive whitespace removal
 const tokenOptimizers = {
@@ -231,6 +237,7 @@ function FileExplorer() {
   const [tokenOptimizationEnabled, setTokenOptimizationEnabled] =
     useState(false);
 
+  const [generatingScript, setGeneratingScript] = useState(false);
   // Token optimization options
   const [removeWhitespace, setRemoveWhitespace] = useState(true);
   const [removeNewlines, setRemoveNewlines] = useState(true);
@@ -773,6 +780,209 @@ function FileExplorer() {
       console.error(`Error processing directory stats:`, error);
     }
   };
+
+  const generatePowerShellScript = async (dirHandle, path, options) => {
+    let scriptLines = [];
+
+    // Recursive helper function
+    const processEntryForScript = async (handle, currentRelativePath) => {
+      const name = handle.name;
+      const fullRelativePath = currentRelativePath ? `${currentRelativePath}/${name}` : name;
+
+      // Apply exclusion rules (same logic as processDirectory/buildDirectoryTree)
+      const isGloballyExcluded =
+        (!options.includeGit && name === ".git") ||
+        (!options.includeNodeModules && name === "node_modules") ||
+        (!options.includeBuildFolders &&
+          (name === "build" || name === "out" || name === ".next")) ||
+        (!options.includeDistFolders && name === "dist") ||
+        (!options.includeCoverage && name === "coverage") ||
+        (!options.includeDSStore && name === ".DS_Store");
+
+      const isCustomExcluded =
+        options.customExclusions && options.customExclusions.includes(fullRelativePath);
+
+      let isFileExcludedByType = false;
+      if (handle.kind === "file") {
+        isFileExcludedByType =
+          (!options.includePackageLock && name === "package-lock.json") ||
+          (!options.includeFavicon &&
+            (name === "favicon.ico" || name.startsWith("favicon."))) ||
+          (!options.includeImgFiles &&
+            /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(name)) ||
+          (!options.includePdfFiles && /\.pdf$/i.test(name)) ||
+          (!options.includeLogFiles && /\.(log|logs)$/i.test(name));
+      }
+
+      if (isGloballyExcluded || isCustomExcluded || isFileExcludedByType) {
+        console.log(`Skipping excluded item for PS script: ${fullRelativePath}`);
+        return; // Skip this entry
+      }
+
+      // Construct PowerShell path (relative to the script's execution location)
+      // Use forward slashes initially, Join-Path will handle platform specifics
+      const psPath = fullRelativePath.replace(/\//g, '\\'); // Use backslashes for PS path
+
+      if (handle.kind === "directory") {
+        // Add command to create directory
+        scriptLines.push(`# Creating directory: ${fullRelativePath}`);
+        scriptLines.push(`$dirPath = Join-Path $basePath "${psPath}"`);
+        scriptLines.push(`if (-not (Test-Path $dirPath)) {`);
+        scriptLines.push(`  New-Item -ItemType Directory -Path $dirPath -Force | Out-Null`);
+        scriptLines.push(`  Write-Host "Created directory: $dirPath"`);
+        scriptLines.push(`} else { Write-Host "Directory already exists: $dirPath" -ForegroundColor Gray }`);
+        scriptLines.push(""); // Add empty line for readability
+
+
+        // Process children recursively
+        try {
+          for await (const [, childHandle] of handle) {
+            await processEntryForScript(childHandle, fullRelativePath);
+          }
+        } catch (error) {
+          console.error(`Error processing directory ${fullRelativePath} for script:`, error);
+          scriptLines.push(`# ERROR: Could not process directory contents for ${fullRelativePath}: ${error.message}`);
+        }
+
+      } else if (handle.kind === "file") {
+        try {
+          const file = await handle.getFile();
+          // Read file content - handle potential errors
+          let fileContent = '';
+          try {
+            // Skip very large files (e.g., > 5MB) from content embedding
+            if (file.size > 5 * 1024 * 1024) {
+               scriptLines.push(`# SKIPPED large file content: ${fullRelativePath} (Size: ${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+               fileContent = `# File content skipped due to large size. Size: ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+            } else {
+                fileContent = await file.text();
+            }
+          } catch (readError) {
+             console.error(`Error reading file content for ${fullRelativePath}:`, readError);
+             scriptLines.push(`# ERROR: Could not read file content for ${fullRelativePath}: ${readError.message}`);
+             fileContent = `# Error reading file content: ${readError.message}`;
+          }
+
+
+          const escapedContent = escapePowerShellHereString(fileContent);
+
+          // Add command to create file with content using Here-String
+          scriptLines.push(`# Creating file: ${fullRelativePath}`);
+          scriptLines.push(`$filePath = Join-Path $basePath "${psPath}"`);
+          scriptLines.push(`$fileContent = @'`);
+          scriptLines.push(escapedContent); // Add escaped content
+          scriptLines.push(`'@`); // End Here-String
+          scriptLines.push(`Set-Content -Path $filePath -Value $fileContent -Encoding UTF8 -Force`);
+          scriptLines.push(`Write-Host "Created file: $filePath"`);
+          scriptLines.push(""); // Add empty line
+
+        } catch (error) {
+          console.error(`Error processing file ${fullRelativePath} for script:`, error);
+          scriptLines.push(`# ERROR: Could not process file ${fullRelativePath}: ${error.message}`);
+        }
+      }
+    };
+
+    // --- Main Script Generation ---
+    scriptLines.push(`# PowerShell Script Generated by TxtExtract`);
+    scriptLines.push(`# Website: https://txtextract.vercel.app`);
+    scriptLines.push(`# Timestamp: ${new Date().toISOString()}`);
+    scriptLines.push(`# Instructions: Run this script in the desired PARENT directory where you want`);
+    scriptLines.push(`#               the '${dirHandle.name}' folder structure to be created.`);
+    scriptLines.push("");
+    scriptLines.push(`# Set the base path to the directory where the script is located`);
+    scriptLines.push(`$basePath = $PSScriptRoot`);
+    scriptLines.push("");
+    scriptLines.push(`# Create the root folder based on the original selection`);
+    scriptLines.push(`$rootFolderName = "${dirHandle.name.replace(/'/g, "''")}" # Escape single quotes in folder name`);
+    scriptLines.push(`$rootDirPath = Join-Path $basePath $rootFolderName`);
+    scriptLines.push(`if (-not (Test-Path $rootDirPath)) {`);
+    scriptLines.push(`  New-Item -ItemType Directory -Path $rootDirPath -Force | Out-Null`);
+    scriptLines.push(`  Write-Host "Created root directory: $rootDirPath"`);
+    scriptLines.push(`} else { Write-Host "Root directory already exists: $rootDirPath" -ForegroundColor Gray }`);
+    scriptLines.push("");
+    scriptLines.push(`# Set base path to inside the newly created root directory for subsequent operations`);
+    scriptLines.push(`$basePath = $rootDirPath`);
+    scriptLines.push("");
+
+
+    // Process all entries starting from the root directory handle
+    try {
+      for await (const [, handle] of dirHandle) {
+        await processEntryForScript(handle, ""); // Start with empty relative path
+      }
+    } catch (error) {
+        console.error("Error iterating through root directory for script:", error);
+        scriptLines.push(`# FATAL ERROR: Could not iterate through root directory: ${error.message}`);
+    }
+
+
+    scriptLines.push("Write-Host \"Script execution finished.\" -ForegroundColor Green");
+
+    return scriptLines.join("\n");
+  };
+
+  // *** ADD THE HANDLER FUNCTION FOR THE NEW BUTTON ***
+  const handleGenerateScript = async () => {
+    if (!selectedDirHandle) {
+      setError("Please select a folder first.");
+      return;
+    }
+
+    setGeneratingScript(true);
+    setError(""); // Clear previous errors
+
+    try {
+      // Use current exclusion settings
+      const options = {
+        includeGit,
+        includeNodeModules,
+        includePackageLock,
+        includeFavicon,
+        includeImgFiles,
+        includeDSStore,
+        includeBuildFolders,
+        includeDistFolders,
+        includeCoverage,
+        includeLogFiles,
+        includePdfFiles,
+        customExclusions, // Use the current custom exclusions
+      };
+
+      console.log("Generating PowerShell script with options:", options);
+
+      // Generate the script content
+      const scriptContent = await generatePowerShellScript(
+        selectedDirHandle,
+        "", // Start path is empty
+        options
+      );
+
+      // Trigger download
+      const filename = folderName
+        ? `${folderName}_recreate.ps1`
+        : "recreate_structure.ps1";
+      const blob = new Blob([scriptContent], { type: "text/plain" }); // Use text/plain or application/octet-stream
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error("Error generating PowerShell script:", error);
+      setError(
+        `Failed to generate PowerShell script: ${error.message || "Unknown error"}`
+      );
+    } finally {
+      setGeneratingScript(false);
+    }
+  };
+
+
 
   // Function to build folder structure for custom exclusion UI
   // FIXED: Now respects global exclusion settings to significantly improve performance
@@ -2625,6 +2835,14 @@ function FileExplorer() {
 
               <button className="download-button" onClick={handleExport}>
                 Download File
+              </button>
+              <button
+                className="download-button" // Reuse existing style or create a new one
+                onClick={handleGenerateScript}
+                disabled={generatingScript || loading || !selectedDirHandle} // Disable during generation, loading, or if no folder selected
+                title="Generate a PowerShell script to recreate this structure"
+              >
+                {generatingScript ? "Generating..." : "Generate PS Script"}
               </button>
             </div>
           </div>
