@@ -1,50 +1,31 @@
-# TxtExtract
+# TxtExtract: Project Structure & Content Extractor
 
-A web application that extracts and displays file structure and contents.
+TxtExtract is a browser-based developer tool designed to effortlessly extract and document the file structure and content of your project directories. Generate a single, formatted output file perfect for sharing, documentation, or providing context to AI models.
 
-## Features
+**Live Demo:** [https://txtextract.vercel.app](https://txtextract.vercel.app)
 
-- Select a folder using the browser's File System Access API
-- Option to include/exclude .git folders and node_modules
-- View the complete file structure with contents
-- Download the output as a text file
+## What it Does
 
-## Getting Started
+Manually copying file structures and contents is time-consuming. TxtExtract uses the **File System Access API** (available in Chromium browsers) to let you select a local project folder. It then reads the directory tree and file contents (respecting your exclusion rules) and compiles everything into one output file. This is incredibly useful for pasting large codebases into AI prompts (like ChatGPT, Claude) without attaching dozens of files.
 
-1. Install dependencies:
-   `ash
-   npm install
-   `
+**Privacy First:** All processing happens **locally in your browser**. Your files and data are never uploaded.
 
-2. Start the development server:
-   `ash
-   npm run dev
-   `
+## Key Features
 
-3. Open [http://localhost:3000](http://localhost:3000) in your browser
+*   **Local Folder Selection:** Securely access local directories via the File System Access API (Chrome/Edge recommended).
+*   **Structure & Content Extraction:** Generates a detailed text output with the directory tree and file contents.
+*   **Exclusion Controls:**
+    *   *Global Filters:* Easily exclude common folders/files (e.g., `.git`, `node_modules`, build output, images) with checkboxes.
+    *   *Custom Selection:* Use an interactive file tree to precisely select which files/folders to include or exclude.
+*   **Multiple Export Formats:** Download the results as `.txt`, Markdown (`.md`), `.html` (with syntax highlighting), or structured `.json`.
+*   **AI Token Optimization:** Reduce the output size significantly for AI prompts by removing extra whitespace, indentation, and simplifying comments, helping you stay within token limits.
+*   **Project Statistics:** View file count, total size, lines of code, file type distribution, and estimated token counts before and after optimization.
+*   **PowerShell Script Generation:** Create a `.ps1` script to automatically recreate the selected folder structure and file contents on another machine.
+*   **Search:** Find text within the generated output preview and filter the custom exclusion file tree.
 
-## Deployment on Vercel
+## How it Works
 
-1. Install Vercel CLI:
-   `ash
-   npm install -g vercel
-   `
-
-2. Deploy:
-   `ash
-   vercel
-   `
-
-## Browser Compatibility
-
-This application uses the File System Access API, which is only supported in:
-- Google Chrome (version 86+)
-- Microsoft Edge (version 86+)
-- Opera (version 72+)
-
-Other browsers like Firefox and Safari do not currently support this API.
-
-## Notes
-
-- Large files (>1MB) are skipped to prevent browser performance issues
-- The application runs entirely in the browser - no data is sent to any server
+*   **Frontend:** Built with React for a dynamic user interface.
+*   **Core Functionality:** Leverages the browser's native File System Access API to read local directories and files securely.
+*   **Token Optimization:** Uses a custom JavaScript tokenizer (`tokenizer.js`) to estimate and reduce token counts based on selected optimization rules.
+*   **Export Formatting:** Generates different output formats directly in the browser.
