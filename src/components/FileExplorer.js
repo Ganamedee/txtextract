@@ -2611,9 +2611,25 @@ function FileExplorer() {
         {/* File Size Limit Panel */}
         {showSizeLimit && (
           <div className="options-section">
-            <div className="size-limit-controls">
-              <label>
-                Max File Size (MB):
+            <div
+              className="size-limit-controls"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "1rem",
+                padding: "1rem",
+                background: "#f5f5f5",
+                borderRadius: "8px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "1rem",
+                }}
+              >
+                <span style={{ minWidth: "120px" }}>Max File Size:</span>
                 <input
                   type="range"
                   min="0"
@@ -2629,24 +2645,46 @@ function FileExplorer() {
                         : e.target.value * 1024 * 1024
                     )
                   }
+                  style={{
+                    flex: 1,
+                    minWidth: "200px",
+                  }}
                 />
-                <span>
+                <span
+                  style={{
+                    minWidth: "80px",
+                    textAlign: "right",
+                    fontWeight: "bold",
+                  }}
+                >
                   {maxFileSize === Infinity
                     ? "No limit"
                     : `${Math.round(maxFileSize / (1024 * 1024))} MB`}
                 </span>
-              </label>
-              <label>
-                File Type Filter:
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "1rem",
+                }}
+              >
+                <span style={{ minWidth: "120px" }}>File Type:</span>
                 <select
                   value={fileTypeFilter}
                   onChange={(e) => setFileTypeFilter(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: "0.5rem",
+                    borderRadius: "4px",
+                    border: "1px solid #ddd",
+                  }}
                 >
                   <option value="*">All files</option>
                   <option value="text">Text files only</option>
                   <option value="code">Code files only</option>
                 </select>
-              </label>
+              </div>
             </div>
           </div>
         )}
