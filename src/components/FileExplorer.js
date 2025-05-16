@@ -9,7 +9,7 @@ const FolderIcon = () => <span className="folder-icon">📁</span>;
 const FileIcon = () => <span className="file-icon">📄</span>;
 const ChevronRight = () => <span>▶</span>;
 const escapePowerShellHereString = (content) => {
-  if (typeof content !== 'string') return '';
+  if (typeof content !== "string") return "";
   // In PowerShell literal Here-Strings (@'...'@), the only character
   // that needs escaping is the single quote ('), which becomes ('').
   return content.replace(/'/g, "''");
@@ -279,6 +279,11 @@ function FileExplorer() {
   const [selectedDirHandle, setSelectedDirHandle] = useState(null);
   const [folderSearchTerm, setFolderSearchTerm] = useState("");
 
+  // Add these new state variables near the other state declarations
+  const [maxFileSize, setMaxFileSize] = useState(Infinity); // Default to no limit
+  const [showSizeLimit, setShowSizeLimit] = useState(false); // For toggle panel
+  const [fileTypeFilter, setFileTypeFilter] = useState("*"); // Default to all file types
+
   const [fileStats, setFileStats] = useState({
     totalFiles: 0,
     totalSize: 0,
@@ -310,6 +315,7 @@ function FileExplorer() {
   const customExclusionsRef = useRef(null);
   const statsIconRef = useRef(null);
   const statsContainerRef = useRef(null);
+  const sizeLimitPanelRef = useRef(null);
 
   // Apply token optimizations to text with enhanced whitespace handling
   const optimizeTokens = (text) => {
@@ -787,7 +793,9 @@ function FileExplorer() {
     // Recursive helper function
     const processEntryForScript = async (handle, currentRelativePath) => {
       const name = handle.name;
-      const fullRelativePath = currentRelativePath ? `${currentRelativePath}/${name}` : name;
+      const fullRelativePath = currentRelativePath
+        ? `${currentRelativePath}/${name}`
+        : name;
 
       // Apply exclusion rules (same logic as processDirectory/buildDirectoryTree)
       const isGloballyExcluded =
@@ -800,7 +808,8 @@ function FileExplorer() {
         (!options.includeDSStore && name === ".DS_Store");
 
       const isCustomExcluded =
-        options.customExclusions && options.customExclusions.includes(fullRelativePath);
+        options.customExclusions &&
+        options.customExclusions.includes(fullRelativePath);
 
       let isFileExcludedByType = false;
       if (handle.kind === "file") {
@@ -815,24 +824,29 @@ function FileExplorer() {
       }
 
       if (isGloballyExcluded || isCustomExcluded || isFileExcludedByType) {
-        console.log(`Skipping excluded item for PS script: ${fullRelativePath}`);
+        console.log(
+          `Skipping excluded item for PS script: ${fullRelativePath}`
+        );
         return; // Skip this entry
       }
 
       // Construct PowerShell path (relative to the script's execution location)
       // Use forward slashes initially, Join-Path will handle platform specifics
-      const psPath = fullRelativePath.replace(/\//g, '\\'); // Use backslashes for PS path
+      const psPath = fullRelativePath.replace(/\//g, "\\"); // Use backslashes for PS path
 
       if (handle.kind === "directory") {
         // Add command to create directory
         scriptLines.push(`# Creating directory: ${fullRelativePath}`);
         scriptLines.push(`$dirPath = Join-Path $basePath "${psPath}"`);
         scriptLines.push(`if (-not (Test-Path $dirPath)) {`);
-        scriptLines.push(`  New-Item -ItemType Directory -Path $dirPath -Force | Out-Null`);
+        scriptLines.push(
+          `  New-Item -ItemType Directory -Path $dirPath -Force | Out-Null`
+        );
         scriptLines.push(`  Write-Host "Created directory: $dirPath"`);
-        scriptLines.push(`} else { Write-Host "Directory already exists: $dirPath" -ForegroundColor Gray }`);
+        scriptLines.push(
+          `} else { Write-Host "Directory already exists: $dirPath" -ForegroundColor Gray }`
+        );
         scriptLines.push(""); // Add empty line for readability
-
 
         // Process children recursively
         try {
@@ -840,29 +854,47 @@ function FileExplorer() {
             await processEntryForScript(childHandle, fullRelativePath);
           }
         } catch (error) {
-          console.error(`Error processing directory ${fullRelativePath} for script:`, error);
-          scriptLines.push(`# ERROR: Could not process directory contents for ${fullRelativePath}: ${error.message}`);
+          console.error(
+            `Error processing directory ${fullRelativePath} for script:`,
+            error
+          );
+          scriptLines.push(
+            `# ERROR: Could not process directory contents for ${fullRelativePath}: ${error.message}`
+          );
         }
-
       } else if (handle.kind === "file") {
         try {
           const file = await handle.getFile();
           // Read file content - handle potential errors
-          let fileContent = '';
+          let fileContent = "";
           try {
             // Skip very large files (e.g., > 5MB) from content embedding
             if (file.size > 5 * 1024 * 1024) {
-               scriptLines.push(`# SKIPPED large file content: ${fullRelativePath} (Size: ${(file.size / 1024 / 1024).toFixed(2)} MB)`);
-               fileContent = `# File content skipped due to large size. Size: ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+              scriptLines.push(
+                `# SKIPPED large file content: ${fullRelativePath} (Size: ${(
+                  file.size /
+                  1024 /
+                  1024
+                ).toFixed(2)} MB)`
+              );
+              fileContent = `# File content skipped due to large size. Size: ${(
+                file.size /
+                1024 /
+                1024
+              ).toFixed(2)} MB`;
             } else {
-                fileContent = await file.text();
+              fileContent = await file.text();
             }
           } catch (readError) {
-             console.error(`Error reading file content for ${fullRelativePath}:`, readError);
-             scriptLines.push(`# ERROR: Could not read file content for ${fullRelativePath}: ${readError.message}`);
-             fileContent = `# Error reading file content: ${readError.message}`;
+            console.error(
+              `Error reading file content for ${fullRelativePath}:`,
+              readError
+            );
+            scriptLines.push(
+              `# ERROR: Could not read file content for ${fullRelativePath}: ${readError.message}`
+            );
+            fileContent = `# Error reading file content: ${readError.message}`;
           }
-
 
           const escapedContent = escapePowerShellHereString(fileContent);
 
@@ -872,13 +904,19 @@ function FileExplorer() {
           scriptLines.push(`$fileContent = @'`);
           scriptLines.push(escapedContent); // Add escaped content
           scriptLines.push(`'@`); // End Here-String
-          scriptLines.push(`Set-Content -Path $filePath -Value $fileContent -Encoding UTF8 -Force`);
+          scriptLines.push(
+            `Set-Content -Path $filePath -Value $fileContent -Encoding UTF8 -Force`
+          );
           scriptLines.push(`Write-Host "Created file: $filePath"`);
           scriptLines.push(""); // Add empty line
-
         } catch (error) {
-          console.error(`Error processing file ${fullRelativePath} for script:`, error);
-          scriptLines.push(`# ERROR: Could not process file ${fullRelativePath}: ${error.message}`);
+          console.error(
+            `Error processing file ${fullRelativePath} for script:`,
+            error
+          );
+          scriptLines.push(
+            `# ERROR: Could not process file ${fullRelativePath}: ${error.message}`
+          );
         }
       }
     };
@@ -887,24 +925,42 @@ function FileExplorer() {
     scriptLines.push(`# PowerShell Script Generated by TxtExtract`);
     scriptLines.push(`# Website: https://txtextract.vercel.app`);
     scriptLines.push(`# Timestamp: ${new Date().toISOString()}`);
-    scriptLines.push(`# Instructions: Run this script in the desired PARENT directory where you want`);
-    scriptLines.push(`#               the '${dirHandle.name}' folder structure to be created.`);
+    scriptLines.push(
+      `# Instructions: Run this script in the desired PARENT directory where you want`
+    );
+    scriptLines.push(
+      `#               the '${dirHandle.name}' folder structure to be created.`
+    );
     scriptLines.push("");
-    scriptLines.push(`# Set the base path to the directory where the script is located`);
+    scriptLines.push(
+      `# Set the base path to the directory where the script is located`
+    );
     scriptLines.push(`$basePath = $PSScriptRoot`);
     scriptLines.push("");
-    scriptLines.push(`# Create the root folder based on the original selection`);
-    scriptLines.push(`$rootFolderName = "${dirHandle.name.replace(/'/g, "''")}" # Escape single quotes in folder name`);
+    scriptLines.push(
+      `# Create the root folder based on the original selection`
+    );
+    scriptLines.push(
+      `$rootFolderName = "${dirHandle.name.replace(
+        /'/g,
+        "''"
+      )}" # Escape single quotes in folder name`
+    );
     scriptLines.push(`$rootDirPath = Join-Path $basePath $rootFolderName`);
     scriptLines.push(`if (-not (Test-Path $rootDirPath)) {`);
-    scriptLines.push(`  New-Item -ItemType Directory -Path $rootDirPath -Force | Out-Null`);
+    scriptLines.push(
+      `  New-Item -ItemType Directory -Path $rootDirPath -Force | Out-Null`
+    );
     scriptLines.push(`  Write-Host "Created root directory: $rootDirPath"`);
-    scriptLines.push(`} else { Write-Host "Root directory already exists: $rootDirPath" -ForegroundColor Gray }`);
+    scriptLines.push(
+      `} else { Write-Host "Root directory already exists: $rootDirPath" -ForegroundColor Gray }`
+    );
     scriptLines.push("");
-    scriptLines.push(`# Set base path to inside the newly created root directory for subsequent operations`);
+    scriptLines.push(
+      `# Set base path to inside the newly created root directory for subsequent operations`
+    );
     scriptLines.push(`$basePath = $rootDirPath`);
     scriptLines.push("");
-
 
     // Process all entries starting from the root directory handle
     try {
@@ -912,12 +968,18 @@ function FileExplorer() {
         await processEntryForScript(handle, ""); // Start with empty relative path
       }
     } catch (error) {
-        console.error("Error iterating through root directory for script:", error);
-        scriptLines.push(`# FATAL ERROR: Could not iterate through root directory: ${error.message}`);
+      console.error(
+        "Error iterating through root directory for script:",
+        error
+      );
+      scriptLines.push(
+        `# FATAL ERROR: Could not iterate through root directory: ${error.message}`
+      );
     }
 
-
-    scriptLines.push("Write-Host \"Script execution finished.\" -ForegroundColor Green");
+    scriptLines.push(
+      'Write-Host "Script execution finished." -ForegroundColor Green'
+    );
 
     return scriptLines.join("\n");
   };
@@ -971,18 +1033,17 @@ function FileExplorer() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
     } catch (error) {
       console.error("Error generating PowerShell script:", error);
       setError(
-        `Failed to generate PowerShell script: ${error.message || "Unknown error"}`
+        `Failed to generate PowerShell script: ${
+          error.message || "Unknown error"
+        }`
       );
     } finally {
       setGeneratingScript(false);
     }
   };
-
-
 
   // Function to build folder structure for custom exclusion UI
   // FIXED: Now respects global exclusion settings to significantly improve performance
@@ -2536,6 +2597,60 @@ function FileExplorer() {
           </div>
         )}
 
+        {/* File Size Limit Toggle */}
+        <div className="options-toggle">
+          <button
+            className={`toggle-button ${showSizeLimit ? "active" : ""}`}
+            onClick={() => setShowSizeLimit(!showSizeLimit)}
+          >
+            <span className="toggle-icon">{showSizeLimit ? "−" : "+"}</span>
+            File Size Limit Options
+          </button>
+        </div>
+
+        {/* File Size Limit Panel */}
+        {showSizeLimit && (
+          <div className="options-section">
+            <div className="size-limit-controls">
+              <label>
+                Max File Size (MB):
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={
+                    maxFileSize === Infinity ? 0 : maxFileSize / (1024 * 1024)
+                  }
+                  onChange={(e) =>
+                    setMaxFileSize(
+                      e.target.value === "0"
+                        ? Infinity
+                        : e.target.value * 1024 * 1024
+                    )
+                  }
+                />
+                <span>
+                  {maxFileSize === Infinity
+                    ? "No limit"
+                    : `${Math.round(maxFileSize / (1024 * 1024))} MB`}
+                </span>
+              </label>
+              <label>
+                File Type Filter:
+                <select
+                  value={fileTypeFilter}
+                  onChange={(e) => setFileTypeFilter(e.target.value)}
+                >
+                  <option value="*">All files</option>
+                  <option value="text">Text files only</option>
+                  <option value="code">Code files only</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        )}
+
         {/* Customize Files/Folders Button - only show when files have been processed */}
         {fileStructure && !showCustomExclusions && !loading && (
           <div className="customize-button-container">
@@ -2833,7 +2948,6 @@ function FileExplorer() {
                 <option value="json">JSON (.json)</option>
               </select>
 
-              
               <button
                 className="download-button" // Reuse existing style or create a new one
                 onClick={handleGenerateScript}
