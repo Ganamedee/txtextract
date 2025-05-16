@@ -2602,17 +2602,15 @@ function FileExplorer() {
           </div>
         )}
         {/* File Size Limit Toggle */}
-        {fileStructure && (
-          <div className="options-toggle">
-            <button
-              className={`toggle-button ${showSizeLimit ? "active" : ""}`}
-              onClick={() => setShowSizeLimit(!showSizeLimit)}
-            >
-              <span className="toggle-icon">{showSizeLimit ? "−" : "+"}</span>
-              File Size Limit Options
-            </button>
-          </div>
-        )}
+        <div className="options-toggle">
+          <button
+            className={`toggle-button ${showSizeLimit ? "active" : ""}`}
+            onClick={() => setShowSizeLimit(!showSizeLimit)}
+          >
+            <span className="toggle-icon">{showSizeLimit ? "−" : "+"}</span>
+            File Size Limit Options
+          </button>
+        </div>
         {/* File Size Limit collapsible panel */}
         <div
           className="exclusion-wrapper"
@@ -2632,13 +2630,12 @@ function FileExplorer() {
 
                 <div className="size-control-row">
                   <span className="size-control-label">Maximum File Size:</span>
-                  // Update the slider's min, max, and step values
                   <input
                     type="range"
                     className="size-slider"
                     min="0"
-                    max="7" // 7 steps
-                    step="1" // Discrete steps
+                    max="7"
+                    step="1"
                     value={
                       maxFileSize === Infinity
                         ? 0
@@ -2659,14 +2656,14 @@ function FileExplorer() {
                     onChange={(e) => {
                       const value = parseInt(e.target.value, 10);
                       const sizes = [
-                        Infinity, // No limit
-                        1 * 1024 * 1024, // 1 MB
-                        5 * 1024 * 1024, // 5 MB
-                        10 * 1024 * 1024, // 10 MB
-                        25 * 1024 * 1024, // 25 MB
-                        50 * 1024 * 1024, // 50 MB
-                        100 * 1024 * 1024, // 100 MB
-                        200 * 1024 * 1024, // 200 MB
+                        Infinity,
+                        1 * 1024 * 1024,
+                        5 * 1024 * 1024,
+                        10 * 1024 * 1024,
+                        25 * 1024 * 1024,
+                        50 * 1024 * 1024,
+                        100 * 1024 * 1024,
+                        200 * 1024 * 1024,
                       ];
                       setMaxFileSize(sizes[value]);
                     }}
@@ -2732,9 +2729,7 @@ function FileExplorer() {
 
                 <p className="size-description">
                   Files larger than this limit will be skipped during
-                  extraction. This helps exclude large binary files (videos,
-                  databases, etc.) that aren't suitable for text extraction and
-                  would slow down processing.
+                  extraction.
                 </p>
               </div>
 
@@ -2754,10 +2749,6 @@ function FileExplorer() {
                     <option value="docs">Documentation files only</option>
                   </select>
                 </div>
-                <p className="size-description">
-                  Filter which types of files are included in the extraction.
-                  Use this to focus on specific file categories.
-                </p>
               </div>
             </div>
           </div>
