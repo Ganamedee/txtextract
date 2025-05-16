@@ -440,6 +440,16 @@ function FileExplorer() {
     };
   }, [searchResults, currentResultIndex]);
 
+  useEffect(() => {
+    if (sizeLimitPanelRef.current) {
+      if (showSizeLimit) {
+        sizeLimitPanelRef.current.style.maxHeight = `${sizeLimitPanelRef.current.scrollHeight}px`;
+      } else {
+        sizeLimitPanelRef.current.style.maxHeight = "0";
+      }
+    }
+  }, [showSizeLimit]);
+
   // Improved statistics toggle with animated icon
   const toggleStatistics = () => {
     // Start icon animation
@@ -2051,6 +2061,7 @@ function FileExplorer() {
         fileStats.largestFile.size / 1024
       ).toFixed(2)} KB)
       </div>
+      
     </div>
     
     <div class="token-stats">
@@ -2287,7 +2298,6 @@ function FileExplorer() {
             {loading ? "Processing..." : "Select Folder"}
           </button>
         </div>
-
         {loading && (
           <div className="progress-container">
             <div className="progress-bar">
@@ -2302,9 +2312,7 @@ function FileExplorer() {
             </div>
           </div>
         )}
-
         {error && <div className="error-message">{error}</div>}
-
         {/* Toggle button for exclusions */}
         <div className="options-toggle">
           <button
@@ -2315,7 +2323,6 @@ function FileExplorer() {
             Global File & Folder Exclusion Options
           </button>
         </div>
-
         {/* Collapsible exclusion options */}
         <div
           className="exclusion-wrapper"
@@ -2469,7 +2476,6 @@ function FileExplorer() {
             </div>
           </div>
         </div>
-
         {/* New: Toggle button for token optimization options */}
         {fileStructure && (
           <div className="options-toggle">
@@ -2484,7 +2490,6 @@ function FileExplorer() {
             </button>
           </div>
         )}
-
         {/* Collapsible token optimization options */}
         {fileStructure && (
           <div
@@ -2596,98 +2601,167 @@ function FileExplorer() {
             </div>
           </div>
         )}
-
         {/* File Size Limit Toggle */}
-        <div className="options-toggle">
-          <button
-            className={`toggle-button ${showSizeLimit ? "active" : ""}`}
-            onClick={() => setShowSizeLimit(!showSizeLimit)}
-          >
-            <span className="toggle-icon">{showSizeLimit ? "−" : "+"}</span>
-            File Size Limit Options
-          </button>
-        </div>
-
-        {/* File Size Limit Panel */}
-        {showSizeLimit && (
-          <div className="options-section">
-            <div
-              className="size-limit-controls"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "1rem",
-                padding: "1rem",
-                background: "#f5f5f5",
-                borderRadius: "8px",
-              }}
+        {fileStructure && (
+          <div className="options-toggle">
+            <button
+              className={`toggle-button ${showSizeLimit ? "active" : ""}`}
+              onClick={() => setShowSizeLimit(!showSizeLimit)}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "1rem",
-                }}
-              >
-                <span style={{ minWidth: "120px" }}>Max File Size:</span>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={
-                    maxFileSize === Infinity ? 0 : maxFileSize / (1024 * 1024)
-                  }
-                  onChange={(e) =>
-                    setMaxFileSize(
-                      e.target.value === "0"
-                        ? Infinity
-                        : e.target.value * 1024 * 1024
-                    )
-                  }
-                  style={{
-                    flex: 1,
-                    minWidth: "200px",
-                  }}
-                />
-                <span
-                  style={{
-                    minWidth: "80px",
-                    textAlign: "right",
-                    fontWeight: "bold",
-                  }}
-                >
-                  {maxFileSize === Infinity
-                    ? "No limit"
-                    : `${Math.round(maxFileSize / (1024 * 1024))} MB`}
-                </span>
+              <span className="toggle-icon">{showSizeLimit ? "−" : "+"}</span>
+              File Size Limit Options
+            </button>
+          </div>
+        )}
+        {/* File Size Limit collapsible panel */}
+        <div
+          className="exclusion-wrapper"
+          ref={sizeLimitPanelRef}
+          style={{
+            maxHeight: showSizeLimit
+              ? `${sizeLimitPanelRef.current?.scrollHeight}px`
+              : "0",
+            overflow: "hidden",
+            transition: "max-height 0.3s ease-in-out",
+          }}
+        >
+          <div className="options-section size-limit-panel">
+            <div className="size-limit-controls">
+              <div className="exclusion-category">
+                <h5>File Size Settings</h5>
+
+                <div className="size-control-row">
+                  <span className="size-control-label">Maximum File Size:</span>
+                  // Update the slider's min, max, and step values
+                  <input
+                    type="range"
+                    className="size-slider"
+                    min="0"
+                    max="7" // 7 steps
+                    step="1" // Discrete steps
+                    value={
+                      maxFileSize === Infinity
+                        ? 0
+                        : maxFileSize <= 1 * 1024 * 1024
+                        ? 1
+                        : maxFileSize <= 5 * 1024 * 1024
+                        ? 2
+                        : maxFileSize <= 10 * 1024 * 1024
+                        ? 3
+                        : maxFileSize <= 25 * 1024 * 1024
+                        ? 4
+                        : maxFileSize <= 50 * 1024 * 1024
+                        ? 5
+                        : maxFileSize <= 100 * 1024 * 1024
+                        ? 6
+                        : 7
+                    }
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value, 10);
+                      const sizes = [
+                        Infinity, // No limit
+                        1 * 1024 * 1024, // 1 MB
+                        5 * 1024 * 1024, // 5 MB
+                        10 * 1024 * 1024, // 10 MB
+                        25 * 1024 * 1024, // 25 MB
+                        50 * 1024 * 1024, // 50 MB
+                        100 * 1024 * 1024, // 100 MB
+                        200 * 1024 * 1024, // 200 MB
+                      ];
+                      setMaxFileSize(sizes[value]);
+                    }}
+                  />
+                  <span className="size-control-value">
+                    {maxFileSize === Infinity
+                      ? "No limit"
+                      : `${Math.round(maxFileSize / (1024 * 1024))} MB`}
+                  </span>
+                </div>
+
+                <div className="size-slider-ticks">
+                  <div
+                    className={`size-slider-tick ${
+                      maxFileSize === Infinity ? "active" : ""
+                    }`}
+                  >
+                    No limit
+                  </div>
+                  <div
+                    className={`size-slider-tick ${
+                      maxFileSize === 1 * 1024 * 1024 ? "active" : ""
+                    }`}
+                  >
+                    1 MB
+                  </div>
+                  <div
+                    className={`size-slider-tick ${
+                      maxFileSize === 5 * 1024 * 1024 ? "active" : ""
+                    }`}
+                  >
+                    5 MB
+                  </div>
+                  <div
+                    className={`size-slider-tick ${
+                      maxFileSize === 10 * 1024 * 1024 ? "active" : ""
+                    }`}
+                  >
+                    10 MB
+                  </div>
+                  <div
+                    className={`size-slider-tick ${
+                      maxFileSize === 25 * 1024 * 1024 ? "active" : ""
+                    }`}
+                  >
+                    25 MB
+                  </div>
+                  <div
+                    className={`size-slider-tick ${
+                      maxFileSize === 50 * 1024 * 1024 ? "active" : ""
+                    }`}
+                  >
+                    50 MB
+                  </div>
+                  <div
+                    className={`size-slider-tick ${
+                      maxFileSize === 100 * 1024 * 1024 ? "active" : ""
+                    }`}
+                  >
+                    100 MB
+                  </div>
+                </div>
+
+                <p className="size-description">
+                  Files larger than this limit will be skipped during
+                  extraction. This helps exclude large binary files (videos,
+                  databases, etc.) that aren't suitable for text extraction and
+                  would slow down processing.
+                </p>
               </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "1rem",
-                }}
-              >
-                <span style={{ minWidth: "120px" }}>File Type:</span>
-                <select
-                  value={fileTypeFilter}
-                  onChange={(e) => setFileTypeFilter(e.target.value)}
-                  style={{
-                    flex: 1,
-                    padding: "0.5rem",
-                    borderRadius: "4px",
-                    border: "1px solid #ddd",
-                  }}
-                >
-                  <option value="*">All files</option>
-                  <option value="text">Text files only</option>
-                  <option value="code">Code files only</option>
-                </select>
+
+              <div className="exclusion-category">
+                <h5>File Type Filter</h5>
+                <div className="size-control-row">
+                  <span className="size-control-label">Include Only:</span>
+                  <select
+                    className="file-type-select"
+                    value={fileTypeFilter}
+                    onChange={(e) => setFileTypeFilter(e.target.value)}
+                  >
+                    <option value="*">All files</option>
+                    <option value="text">Text files only</option>
+                    <option value="code">Code files only</option>
+                    <option value="data">Data files only</option>
+                    <option value="docs">Documentation files only</option>
+                  </select>
+                </div>
+                <p className="size-description">
+                  Filter which types of files are included in the extraction.
+                  Use this to focus on specific file categories.
+                </p>
               </div>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Customize Files/Folders Button - only show when files have been processed */}
         {fileStructure && !showCustomExclusions && !loading && (
@@ -2700,7 +2774,6 @@ function FileExplorer() {
             </button>
           </div>
         )}
-
         {/* Custom Files/Folders Exclusion Panel with smooth animation and search */}
         {showCustomExclusions && (
           <div className="custom-exclusion-container" ref={customExclusionsRef}>
@@ -2767,7 +2840,6 @@ function FileExplorer() {
             </button>
           </div>
         )}
-
         {!isFileSystemAccessSupported() && (
           <div className="browser-warning">
             ⚠️ Your browser may not support the File System Access API. For the

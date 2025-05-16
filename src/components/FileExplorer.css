@@ -30,6 +30,168 @@
   margin-bottom: 1.5rem;
 }
 
+/* Add these styles to FileExplorer.css */
+.size-limit-panel {
+  margin-bottom: 1rem;
+}
+
+.size-limit-controls {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  transition: background-color 0.3s ease;
+}
+
+.size-limit-controls:hover {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.size-control-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.size-control-label {
+  min-width: 120px;
+  font-weight: 500;
+}
+
+.size-control-value {
+  min-width: 100px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--color-highlight);
+}
+
+.size-description {
+  font-size: 0.9rem;
+  opacity: 0.85;
+  margin-top: 0.5rem;
+  line-height: 1.4;
+}
+
+.file-type-select {
+  flex: 1;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.file-type-select:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.size-slider {
+  flex: 1;
+  min-width: 200px;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  outline: none;
+}
+
+.size-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-button-primary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.size-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-button-primary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.size-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  background: var(--color-button-hover);
+}
+
+.size-slider-ticks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  padding: 0 10px;
+  font-size: 0.8rem;
+}
+
+.size-slider-tick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0.7;
+}
+
+.size-slider-tick::before {
+  content: "|";
+  font-size: 0.7rem;
+  margin-bottom: 0.2rem;
+}
+
+.size-slider-tick.active {
+  color: var(--color-highlight);
+  opacity: 1;
+  font-weight: bold;
+}
+
+/* Add to FileExplorer.css */
+.size-limit-stats {
+  background: rgba(255, 166, 0, 0.1);
+  border-left: 3px solid orange;
+}
+
+[data-theme="dark"] .size-limit-stats {
+  background: rgba(255, 166, 0, 0.2);
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .size-limit-controls {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .size-limit-controls:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .size-control-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .size-control-label {
+    margin-bottom: 0.5rem;
+  }
+
+  .size-control-value {
+    text-align: center;
+    margin-top: 0.5rem;
+  }
+
+  .size-slider-ticks {
+    display: none;
+  }
+}
+
 .select-button {
   background: var(--color-button-primary);
   color: var(--color-button-text);
