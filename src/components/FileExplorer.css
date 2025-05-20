@@ -843,12 +843,33 @@
   transition: all 0.3s ease;
   box-shadow: 0 2px 4px var(--color-shadow);
   font-weight: 600;
+  margin-right: 0.5rem;
 }
 
-.download-button:hover {
-  background: var(--color-button-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px var(--color-shadow);
+.download-button:last-child {
+  margin-right: 0;
+}
+
+.download-button[aria-label="Copy extracted results to clipboard"] {
+  min-width: 140px;
+}
+
+.download-button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Animation for download button in loading states */
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
 }
 
 .output {

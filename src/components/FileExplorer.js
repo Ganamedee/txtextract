@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import PropTypes from "prop-types";
 import "./FileExplorer.css";
 import hljs from "highlight.js";
 import "highlight.js/styles/atom-one-dark.css";
@@ -317,6 +318,130 @@ function FileExplorer() {
   const statsContainerRef = useRef(null);
   const sizeLimitPanelRef = useRef(null);
 
+  // State for export format
+  // const [exportFormat, setExportFormat] = useState("txt");
+  // State for copy-to-clipboard feedback
+  const [copySuccess, setCopySuccess] = useState(false);
+  // State for exclusion presets
+  const [presetName, setPresetName] = useState("");
+  const [presetList, setPresetList] = useState([]);
+
+  // --- Accessibility: Keyboard navigation for search and export controls ---
+  const searchInputRef = useRef(null);
+  const exportSelectRef = useRef(null);
+  const downloadBtnRef = useRef(null);
+  const copyBtnRef = useRef(null);
+  const pdfBtnRef = useRef(null);
+  const savePresetBtnRef = useRef(null);
+  const loadPresetBtnRef = useRef(null);
+
+  // --- PDF Export Handler ---
+  const exportAsPdf = async () => {
+    const jsPDF = (await import("jspdf")).jsPDF;
+    const html2canvas = (await import("html2canvas")).default;
+    const element = outputRef.current;
+    if (!element) return;
+    const canvas = await html2canvas(element, { backgroundColor: "#fff" });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "pt",
+      format: "a4",
+    });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = pageWidth - 40;
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    pdf.addImage(imgData, "PNG", 20, 20, pdfWidth, pdfHeight);
+    pdf.save(`${folderName || "file_structure"}.pdf`);
+  };
+
+  // --- Exclusion Preset Handlers ---
+  const exclusionPresetKeys = [
+    "includeGit",
+    "includeDSStore",
+    "includeLogFiles",
+    "includeNodeModules",
+    "includePackageLock",
+    "includeBuildFolders",
+    "includeDistFolders",
+    "includeCoverage",
+    "includeImgFiles",
+    "includePdfFiles",
+    "includeFavicon",
+  ];
+  const handleSavePreset = () => {
+    if (!presetName.trim()) return;
+    const preset = {};
+    exclusionPresetKeys.forEach((key) => {
+      preset[key] = eval(key);
+    });
+    localStorage.setItem(
+      `txtextract_exclusion_preset_${presetName.trim()}`,
+      JSON.stringify(preset)
+    );
+    updatePresetList();
+    setPresetName("");
+  };
+  const handleLoadPreset = (name) => {
+    const presetStr = localStorage.getItem(
+      `txtextract_exclusion_preset_${name}`
+    );
+    if (!presetStr) return;
+    const preset = JSON.parse(presetStr);
+    exclusionPresetKeys.forEach((key) => {
+      if (typeof preset[key] !== "undefined") {
+        eval(`set${key.charAt(0).toUpperCase() + key.slice(1)}(preset[key])`);
+      }
+    });
+  };
+  const updatePresetList = () => {
+    const keys = Object.keys(localStorage).filter((k) =>
+      k.startsWith("txtextract_exclusion_preset_")
+    );
+    setPresetList(
+      keys.map((k) => k.replace("txtextract_exclusion_preset_", ""))
+    );
+  };
+  useEffect(() => {
+    updatePresetList();
+  }, []);
+
+  // --- Accessibility: Keyboard navigation for export/search controls ---
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Tab") {
+        // Custom tab order for export/search controls
+        const focusables = [
+          searchInputRef.current,
+          exportSelectRef.current,
+          downloadBtnRef.current,
+          copyBtnRef.current,
+          pdfBtnRef.current,
+          savePresetBtnRef.current,
+          loadPresetBtnRef.current,
+        ].filter(Boolean);
+        const idx = focusables.indexOf(document.activeElement);
+        if (e.shiftKey) {
+          if (idx > 0) {
+            focusables[idx - 1].focus();
+            e.preventDefault();
+          }
+        } else {
+          if (idx > -1 && idx < focusables.length - 1) {
+            focusables[idx + 1].focus();
+            e.preventDefault();
+          }
+        }
+      }
+    };
+    const container = document.querySelector(".export-controls");
+    if (container) container.addEventListener("keydown", handleKeyDown);
+    return () => {
+      if (container) container.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   // Apply token optimizations to text with enhanced whitespace handling
   const optimizeTokens = (text) => {
     let optimized = text;
@@ -608,7 +733,7 @@ function FileExplorer() {
               (name === "favicon.ico" || name.startsWith("favicon."))) ||
             (!options.includeImgFiles &&
               /\.(jpg|jpeg|png|gif|svg|bmp|webp|ico)$/i.test(name)) ||
-            (!options.includePdfFiles && /\.pdf$/i.test(name)) || // Add PDF exclusion
+            (!options.includePdfFiles && /\.pdf$/i.test(name)) ||
             (!options.includeLogFiles && /\.(log|logs)$/i.test(name))));
 
       // Check if custom excluded
@@ -1053,6 +1178,41 @@ function FileExplorer() {
     } finally {
       setGeneratingScript(false);
     }
+  };
+
+  // PDF export handler
+  const handleExportPdf = () => {
+    if (outputRef.current) {
+      const printWindow = window.open("", "", "width=900,height=700");
+      printWindow.document.write("<html><head><title>Export as PDF</title>");
+      printWindow.document.write(
+        "<style>body{font-family:monospace;padding:2em;}pre{white-space:pre-wrap;word-break:break-all;}</style>"
+      );
+      printWindow.document.write("</head><body >");
+      printWindow.document.write(
+        "<pre>" +
+          (tokenOptimizationEnabled ? optimizedFileStructure : fileStructure)
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;") +
+          "</pre>"
+      );
+      printWindow.document.write("</body></html>");
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+    }
+  };
+
+  // Preset save/load handlers
+  const savePreset = () => {
+    localStorage.setItem(
+      "txtextract_exclusions",
+      JSON.stringify(customExclusions)
+    );
+  };
+  const loadPreset = () => {
+    const preset = localStorage.getItem("txtextract_exclusions");
+    if (preset) setCustomExclusions(JSON.parse(preset));
   };
 
   // Function to build folder structure for custom exclusion UI
@@ -1765,7 +1925,7 @@ function FileExplorer() {
     return highlightedText;
   };
 
-  // Export functions
+  // --- Export handler update to support PDF ---
   const handleExport = () => {
     switch (exportFormat) {
       case "txt":
@@ -1779,6 +1939,9 @@ function FileExplorer() {
         break;
       case "json":
         exportAsJson();
+        break;
+      case "pdf":
+        exportAsPdf();
         break;
       default:
         exportAsText();
@@ -1832,7 +1995,7 @@ function FileExplorer() {
 
     // Add statistics if available
     if (fileStats.totalFiles > 0) {
-      mdContent += "## Statistics\n\n";
+      mdContent += `## Statistics\n\n`;
       mdContent += `- Total Files: ${fileStats.totalFiles}\n`;
       mdContent += `- Total Size: ${(
         fileStats.totalSize /
@@ -1924,80 +2087,20 @@ function FileExplorer() {
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
   <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      line-height: 1.6;
-      color: #333;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-    pre {
-      background: #f5f5f5;
-      padding: 15px;
-      border-radius: 8px;
-      overflow-x: auto;
-    }
-    .tree {
-      font-family: monospace;
-      white-space: pre;
-      background: #f5f5f5;
-      padding: 15px;
-      border-radius: 8px;
-    }
-    h1 {
-      color: #2c3e50;
-      padding-bottom: 10px;
-      border-bottom: 2px solid #eaecef;
-    }
-    h2 {
-      color: #2c3e50;
-      margin-top: 30px;
-    }
-    h3 {
-      color: #2c3e50;
-      margin-top: 25px;
-      padding: 5px 10px;
-      background: #f1f1f1;
-      border-radius: 4px;
-    }
-    .file-container {
-      margin-bottom: 30px;
-    }
-    .file-path {
-      font-weight: bold;
-      margin-bottom: 10px;
-    }
-    .directory-path {
-      font-weight: bold;
-      margin: 20px 0 10px;
-      padding: 5px 10px;
-      background: #e0f7fa;
-      border-radius: 4px;
-    }
-    .stats-container {
-      background: #f8f9fa;
-      padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-    }
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 10px;
-    }
-    .file-types {
-      margin-top: 15px;
-    }
-    .excluded {
-      color: #888;
-      font-style: italic;
-    }
-    .token-stats {
-      margin-top: 20px;
-      padding-top: 15px;
-      border-top: 1px solid #eaecef;
-    }
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 1200px; margin: 0 auto; padding: 20px; }
+    pre { background: #f5f5f5; padding: 15px; border-radius: 8px; overflow-x: auto; }
+    .tree { font-family: monospace; white-space: pre; background: #f5f5f5; padding: 15px; border-radius: 8px; }
+    h1 { color: #2c3e50; padding-bottom: 10px; border-bottom: 2px solid #eaecef; }
+    h2 { color: #2c3e50; margin-top: 30px; }
+    h3 { color: #2c3e50; margin-top: 25px; padding: 5px 10px; background: #f1f1f1; border-radius: 4px; }
+    .file-container { margin-bottom: 30px; }
+    .file-path { font-weight: bold; margin-bottom: 10px; }
+    .directory-path { font-weight: bold; margin: 20px 0 10px; padding: 5px 10px; background: #e0f7fa; border-radius: 4px; }
+    .stats-container { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+    .file-types { margin-top: 15px; }
+    .excluded { color: #888; font-style: italic; }
+    .token-stats { margin-top: 20px; padding-top: 15px; border-top: 1px solid #eaecef; }
   </style>
 </head>
 <body>
@@ -2017,131 +2120,69 @@ function FileExplorer() {
         .replace(
           /\[not included\]/g,
           '<span class="excluded">[not included]</span>'
-        )
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+        );
 
-      htmlContent +=
-        "<h2>Directory Tree</h2>\n<div class='tree'>" +
-        treeStructure +
-        "</div>\n";
+      htmlContent += `<h2>Directory Tree</h2><pre class="tree">${treeStructure}</pre>`;
     }
 
-    // Add statistics if available
+    // Add statistics if available (FIXED: use a single valid template string)
     if (fileStats.totalFiles > 0) {
-      htmlContent += `
-  <h2>Statistics</h2>
-  <div class="stats-container">
-    <div class="stats-grid">
-      <div>
-        <strong>Total Files:</strong> ${fileStats.totalFiles}
-      </div>
-      <div>
-        <strong>Total Size:</strong> ${(
-          fileStats.totalSize /
-          (1024 * 1024)
-        ).toFixed(2)} MB
-      </div>
-      <div>
-        <strong>Average File Size:</strong> ${(
-          fileStats.averageFileSize / 1024
-        ).toFixed(2)} KB
-      </div>
-      <div>
-        <strong>Total Lines:</strong> ${fileStats.totalLines.toLocaleString()}
-      </div>
-      <div>
-        <strong>Total Characters:</strong> ${fileStats.totalCharacters.toLocaleString()}
-      </div>
-      <div>
-        <strong>Total Words:</strong> ${fileStats.totalWords.toLocaleString()}
-      </div>
-      <div>
-        <strong>Largest File:</strong> ${fileStats.largestFile.name} (${(
-        fileStats.largestFile.size / 1024
-      ).toFixed(2)} KB)
-      </div>
-      
-    </div>
-    
-    <div class="token-stats">
-      <h3>Token Statistics</h3>
-      <div>
-        <strong>Estimated Tokens:</strong> ${fileStats.totalTokens.toLocaleString()}
-      </div>
-      ${
-        tokenOptimizationEnabled
-          ? `
-      <div>
-        <strong>Optimized Tokens:</strong> ${fileStats.totalTokensOptimized.toLocaleString()}
-      </div>
-      <div>
-        <strong>Token Reduction:</strong> ${fileStats.tokenReduction.toFixed(
-          1
-        )}%
-      </div>
-      `
-          : ""
-      }
-    </div>
-    
-    <div class="file-types">
-      <h3>File Types</h3>
-      <ul>
-`;
-
-      Object.entries(fileStats.fileTypes)
-        .slice(0, 10)
-        .forEach(([ext, data]) => {
-          htmlContent += `        <li><strong>.${ext}:</strong> ${
-            data.count
-          } files, ${(data.size / 1024).toFixed(1)} KB</li>\n`;
-        });
-
-      htmlContent += `      </ul>
-    </div>
-  </div>
-`;
+      htmlContent += `<h2>Statistics</h2>
+        <div class="stats-grid">
+          <div class="stat-item"><span class="stat-label">Total Files:</span><span class="stat-value">${fileStats.totalFiles.toLocaleString()}</span></div>
+          <div class="stat-item"><span class="stat-label">Total Size:</span><span class="stat-value">${(
+            fileStats.totalSize /
+            (1024 * 1024)
+          ).toFixed(2)} MB</span></div>
+          <div class="stat-item"><span class="stat-label">Average File Size:</span><span class="stat-value">${(
+            fileStats.averageFileSize / 1024
+          ).toFixed(2)} KB</span></div>
+          <div class="stat-item"><span class="stat-label">Total Lines:</span><span class="stat-value">${fileStats.totalLines.toLocaleString()}</span></div>
+          <div class="stat-item"><span class="stat-label">Total Characters:</span><span class="stat-value">${fileStats.totalCharacters.toLocaleString()}</span></div>
+          <div class="stat-item"><span class="stat-label">Total Words:</span><span class="stat-value">${fileStats.totalWords.toLocaleString()}</span></div>
+          <div class="stat-item"><span class="stat-label">Largest File:</span><span class="stat-value">${
+            fileStats.largestFile.name
+          } (${(fileStats.largestFile.size / 1024).toFixed(2)} KB)</span></div>
+          ${
+            tokenOptimizationEnabled
+              ? `
+            <div class="stat-item token-stats-item"><span class="stat-label">Estimated Tokens:</span><span class="stat-value">${fileStats.totalTokens.toLocaleString()}</span></div>
+            <div class="stat-item token-stats-item"><span class="stat-label">Optimized Tokens:</span><span class="stat-value">${fileStats.totalTokensOptimized.toLocaleString()}</span></div>
+            <div class="stat-item token-stats-item"><span class="stat-label">Token Reduction:</span><span class="stat-value">${fileStats.tokenReduction.toFixed(
+              1
+            )}%</span></div>
+          `
+              : ""
+          }
+        </div>`;
     }
 
-    // Get file contents and convert them
-    htmlContent += "<h2>File Contents</h2>\n";
+    // Get file contents and convert them to HTML
+    htmlContent += "<h2>File Contents</h2>";
 
-    // Split by file and directory markers
-    const contentRegex =
-      /\/\/ (File|Directory): (.*)\n([\s\S]*?)(?=\/\/ (File|Directory):|$)/g;
+    // Split by file markers
+    const fileRegex =
+      /\/\/ File: (.*)\n([\s\S]*?)(?=\/\/ File:|\/\/ Directory:|$)/g;
     let match;
 
-    while ((match = contentRegex.exec(textToUse)) !== null) {
-      const type = match[1]; // File or Directory
-      const path = match[2];
-      const content = match[3].trim();
+    while ((match = fileRegex.exec(textToUse)) !== null) {
+      const filePath = match[1];
+      const content = match[2].trim();
 
-      if (type === "File") {
-        // Determine the language for highlighting based on file extension
-        const extension = path.split(".").pop().toLowerCase();
-        const language = getLanguageFromExtension(extension);
+      // Add file heading
+      htmlContent += `<h3>${filePath}</h3>`;
 
-        htmlContent += `
-  <div class="file-container">
-    <h3>${path}</h3>
-    <pre><code class="language-${language}">${content}</code></pre>
-  </div>
-`;
-      } else if (type === "Directory") {
-        htmlContent += `
-  <div class="directory-path">${path}</div>
-`;
-      }
+      // Add file content with syntax highlighting
+      const language = getLanguageFromExtension(filePath.split(".").pop());
+      htmlContent += `<pre><code class="${language}">${
+        hljs.highlight(content, { language }).value
+      }</code></pre>`;
     }
 
-    // Close the HTML document
     htmlContent += `
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      document.querySelectorAll('pre code').forEach((block) => {
-        hljs.highlightElement(block);
-      });
+    document.querySelectorAll("pre code").forEach((block) => {
+      hljs.highlightElement(block);
     });
   </script>
 </body>
@@ -2167,25 +2208,14 @@ function FileExplorer() {
       : "file_structure.json";
 
     // Use optimized version if token optimization is enabled
-    const textToUse = tokenOptimizationEnabled
+    const textToSearch = tokenOptimizationEnabled
       ? optimizedFileStructure
       : fileStructure;
 
-    // Parse the file structure into a JSON object
     const jsonStructure = {
-      name: folderName || "Unknown Folder",
       tree: {},
-      files: {},
-      stats: fileStats,
+      files: [],
     };
-
-    // Get the tree structure
-    const treeStructureMatch = textToUse.match(
-      /\/\/ Full Directory Structure:\n([\s\S]*?)\/\/ Detailed File Contents:/
-    );
-    if (treeStructureMatch && treeStructureMatch[1]) {
-      jsonStructure.treeText = treeStructureMatch[1].trim();
-    }
 
     // Build structured tree and files data
     const fileRegex =
@@ -2193,18 +2223,15 @@ function FileExplorer() {
     let match;
 
     // Find all files and their content
-    while ((match = fileRegex.exec(textToUse)) !== null) {
+    while ((match = fileRegex.exec(textToSearch)) !== null) {
       const filePath = match[1];
       const content = match[2].trim();
 
-      // Add to files object
-      jsonStructure.files[filePath] = {
+      jsonStructure.files.push({
         path: filePath,
         content: content,
-        extension: filePath.split(".").pop().toLowerCase(),
-      };
+      });
 
-      // Add to tree structure
       const pathParts = filePath.split("/");
       let currentLevel = jsonStructure.tree;
 
@@ -3013,8 +3040,11 @@ function FileExplorer() {
                 <span className="optimized-label"> (Optimized)</span>
               )}
             </h2>
-
-            <div className="search-container">
+            <div
+              className="search-container"
+              role="search"
+              aria-label="Search extracted files"
+            >
               <input
                 type="text"
                 placeholder="Search in files..."
@@ -3022,50 +3052,154 @@ function FileExplorer() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 className="search-input"
+                ref={searchInputRef}
+                aria-label="Search in extracted files"
+                title="Type a search term and press Enter"
               />
-              <button className="search-button" onClick={handleSearch}>
+              <button
+                className="search-button"
+                onClick={handleSearch}
+                aria-label="Search"
+                title="Search for the entered term"
+              >
                 Search
               </button>
               {searchResults.length > 0 && (
-                <div className="search-navigation">
-                  <button onClick={() => navigateResults("prev")}>↑</button>
+                <div
+                  className="search-navigation"
+                  aria-label="Search result navigation"
+                >
+                  <button
+                    onClick={() => navigateResults("prev")}
+                    aria-label="Previous result"
+                    title="Previous result"
+                  >
+                    ↑
+                  </button>
                   <span>
                     {currentResultIndex + 1} of {searchResults.length}
                   </span>
-                  <button onClick={() => navigateResults("next")}>↓</button>
+                  <button
+                    onClick={() => navigateResults("next")}
+                    aria-label="Next result"
+                    title="Next result"
+                  >
+                    ↓
+                  </button>
                 </div>
               )}
             </div>
-
-            <div className="export-controls">
+            <div
+              className="export-controls"
+              role="region"
+              aria-label="Export and clipboard controls"
+            >
               <select
                 className="format-select"
                 value={exportFormat}
                 onChange={(e) => setExportFormat(e.target.value)}
+                ref={exportSelectRef}
+                aria-label="Select export format"
+                title="Choose export file format"
               >
                 <option value="txt">Text (.txt)</option>
                 <option value="md">Markdown (.md)</option>
                 <option value="html">HTML (.html)</option>
                 <option value="json">JSON (.json)</option>
+                <option value="pdf">PDF (.pdf)</option>
               </select>
-
               <button
-                className="download-button" // Reuse existing style or create a new one
+                className="download-button"
                 onClick={handleGenerateScript}
-                disabled={generatingScript || loading || !selectedDirHandle} // Disable during generation, loading, or if no folder selected
+                disabled={generatingScript || loading || !selectedDirHandle}
                 title="Generate a PowerShell script to recreate this structure"
+                aria-label="Generate PowerShell script"
+                ref={downloadBtnRef}
               >
                 {generatingScript ? "Generating..." : "Generate PS Script"}
               </button>
-              <button className="download-button" onClick={handleExport}>
+              <button
+                className="download-button"
+                onClick={handleExport}
+                aria-label="Download exported file"
+                title="Download the extracted structure as a file"
+              >
                 Download File
               </button>
+              <button
+                className="download-button"
+                onClick={() => {
+                  const textToCopy = tokenOptimizationEnabled
+                    ? optimizedFileStructure
+                    : fileStructure;
+                  if (!textToCopy) return;
+                  navigator.clipboard.writeText(textToCopy).then(() => {
+                    setCopySuccess(true);
+                    setTimeout(() => setCopySuccess(false), 1500);
+                  });
+                }}
+                disabled={loading || !(fileStructure || optimizedFileStructure)}
+                aria-label="Copy extracted results to clipboard"
+                title="Copy extracted results to clipboard"
+                ref={copyBtnRef}
+              >
+                {copySuccess ? "Copied!" : "Copy to Clipboard"}
+              </button>
+              <button
+                className="download-button"
+                onClick={exportAsPdf}
+                aria-label="Export as PDF"
+                title="Export the extracted structure as a PDF file"
+                ref={pdfBtnRef}
+              >
+                Export as PDF
+              </button>
+              {/* Exclusion Preset Controls */}
+              <input
+                type="text"
+                className="preset-input"
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                placeholder="Preset name"
+                aria-label="Preset name"
+                title="Enter a name for the exclusion preset"
+                style={{ width: 120, marginLeft: 8 }}
+              />
+              <button
+                className="download-button"
+                onClick={handleSavePreset}
+                aria-label="Save exclusion preset"
+                title="Save current exclusion settings as a preset"
+                ref={savePresetBtnRef}
+                disabled={!presetName.trim()}
+              >
+                Save Preset
+              </button>
+              <select
+                className="preset-select"
+                onChange={(e) => handleLoadPreset(e.target.value)}
+                aria-label="Load exclusion preset"
+                title="Load a saved exclusion preset"
+                ref={loadPresetBtnRef}
+                style={{ width: 120, marginLeft: 8 }}
+                value=""
+              >
+                <option value="" disabled>
+                  Load Preset
+                </option>
+                {presetList.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
-
           <pre
             className="output"
             ref={outputRef}
+            tabIndex={0}
+            aria-label="Extracted file structure output"
             dangerouslySetInnerHTML={{
               __html:
                 fileStructure && searchQuery && searchResults.length > 0
@@ -3088,4 +3222,5 @@ function FileExplorer() {
   );
 }
 
-export default FileExplorer;
+// --- PropTypes for FileExplorer (for code quality) ---
+FileExplorer.propTypes = {};
