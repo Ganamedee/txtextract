@@ -2300,6 +2300,193 @@ function FileExplorer() {
           </button>
         </>
       )}
+
+      {/* Token Optimization Controls */}
+      {fileStructure && (
+        <div className="token-optimization-options">
+          <div className="token-optimization-toggle">
+            <div>
+              <label className="token-optimization-label">
+                <input
+                  type="checkbox"
+                  checked={tokenOptimizationEnabled}
+                  onChange={toggleTokenOptimization}
+                />
+                <span className="toggle-label">Enable Token Optimization</span>
+              </label>
+              {tokenOptimizationEnabled && fileStats.tokenReduction > 0 && (
+                <div className="token-reduction-info">
+                  <span className="token-reduction-positive">
+                    {fileStats.tokenReduction.toFixed(1)}% token reduction
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {tokenOptimizationEnabled && (
+            <div className="token-optimization-info">
+              <h4>Optimization Options:</h4>
+              <div>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={removeWhitespace}
+                    onChange={(e) => setRemoveWhitespace(e.target.checked)}
+                  />
+                  Remove extra whitespace
+                </label>
+              </div>
+              <div>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={removeNewlines}
+                    onChange={(e) => setRemoveNewlines(e.target.checked)}
+                  />
+                  Reduce consecutive newlines
+                </label>
+              </div>
+              <div>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={removeIndentation}
+                    onChange={(e) => setRemoveIndentation(e.target.checked)}
+                  />
+                  Remove indentation
+                </label>
+              </div>
+              <div>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={simplifyComments}
+                    onChange={(e) => setSimplifyComments(e.target.checked)}
+                  />
+                  Simplify comment headers
+                </label>
+              </div>
+              <div>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={removeEmptyLines}
+                    onChange={(e) => setRemoveEmptyLines(e.target.checked)}
+                  />
+                  Remove empty lines
+                </label>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Statistics Panel */}
+      {fileStructure && (
+        <div className="stats-toggle-container">
+          <button
+            className={`stats-toggle-button ${showStatistics ? "active" : ""} ${
+              statsIconAnimating ? "icon-animating" : ""
+            }`}
+            onClick={toggleStatistics}
+            ref={statsIconRef}
+            aria-label="Toggle statistics panel"
+          >
+            <span className="toggle-icon">📊</span>
+            Statistics
+          </button>
+        </div>
+      )}
+
+      {/* Statistics Content */}
+      {fileStructure && (
+        <div
+          className={`stats-container ${showStatistics ? "show" : ""} ${
+            hidingStatistics ? "hiding" : ""
+          }`}
+          ref={statsContainerRef}
+        >
+          <div className="stats-content">
+            <h3>File Statistics</h3>
+            <div className="stats-grid">
+              <div className="stat-item">
+                <span className="stat-label">Total Files:</span>
+                <span className="stat-value">{fileStats.totalFiles.toLocaleString()}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Total Size:</span>
+                <span className="stat-value">
+                  {(fileStats.totalSize / (1024 * 1024)).toFixed(2)} MB
+                </span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Average File Size:</span>
+                <span className="stat-value">
+                  {(fileStats.averageFileSize / 1024).toFixed(2)} KB
+                </span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Total Lines:</span>
+                <span className="stat-value">{fileStats.totalLines.toLocaleString()}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Total Characters:</span>
+                <span className="stat-value">{fileStats.totalCharacters.toLocaleString()}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Total Words:</span>
+                <span className="stat-value">{fileStats.totalWords.toLocaleString()}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Estimated Tokens:</span>
+                <span className="stat-value">{fileStats.totalTokens.toLocaleString()}</span>
+              </div>
+              {tokenOptimizationEnabled && (
+                <>
+                  <div className="stat-item token-stats-item">
+                    <span className="stat-label">Optimized Tokens:</span>
+                    <span className="stat-value">{fileStats.totalTokensOptimized.toLocaleString()}</span>
+                  </div>
+                  <div className="stat-item token-stats-item">
+                    <span className="stat-label">Token Reduction:</span>
+                    <span className="stat-value">{fileStats.tokenReduction.toFixed(1)}%</span>
+                  </div>
+                </>
+              )}
+              <div className="stat-item">
+                <span className="stat-label">Largest File:</span>
+                <span className="stat-value">
+                  {fileStats.largestFile.name} ({(fileStats.largestFile.size / 1024).toFixed(2)} KB)
+                </span>
+              </div>
+            </div>
+
+            {Object.keys(fileStats.fileTypes).length > 0 && (
+              <div className="file-types-grid">
+                <h4>File Types</h4>
+                {Object.entries(fileStats.fileTypes)
+                  .sort(([, a], [, b]) => b.count - a.count)
+                  .slice(0, 10)
+                  .map(([ext, data]) => (
+                    <div key={ext} className="file-type-item">
+                      <div className="file-type-name">.{ext}</div>
+                      <div className="file-type-count">{data.count} files</div>
+                      <div className="file-type-size">{(data.size / 1024).toFixed(1)} KB</div>
+                      <div
+                        className="file-type-bar"
+                        style={{
+                          width: `${(data.count / fileStats.totalFiles) * 100}%`,
+                        }}
+                      ></div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Extraction result and export controls */}
       {fileStructure && (
         <div className="result-container">
