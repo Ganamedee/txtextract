@@ -1777,9 +1777,6 @@ function FileExplorer() {
       case "json":
         exportAsJson();
         break;
-      case "pdf":
-        exportAsPdf();
-        break;
       default:
         exportAsText();
     }
