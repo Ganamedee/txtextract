@@ -320,92 +320,14 @@ function FileExplorer() {
 
   // State for export format
   // const [exportFormat, setExportFormat] = useState("txt");
-  // State for copy-to-clipboard feedback
-  const [copySuccess, setCopySuccess] = useState(false);
-  // State for exclusion presets
-  const [presetName, setPresetName] = useState("");
-  const [presetList, setPresetList] = useState([]);
 
   // --- Accessibility: Keyboard navigation for search and export controls ---
   const searchInputRef = useRef(null);
   const exportSelectRef = useRef(null);
   const downloadBtnRef = useRef(null);
-  const copyBtnRef = useRef(null);
-  const pdfBtnRef = useRef(null);
-  const savePresetBtnRef = useRef(null);
-  const loadPresetBtnRef = useRef(null);
-
-  // --- PDF Export Handler ---
-  const exportAsPdf = async () => {
-    const jsPDF = (await import("jspdf")).jsPDF;
-    const html2canvas = (await import("html2canvas")).default;
-    const element = outputRef.current;
-    if (!element) return;
-    const canvas = await html2canvas(element, { backgroundColor: "#fff" });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "pt",
-      format: "a4",
-    });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pageWidth - 40;
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    pdf.addImage(imgData, "PNG", 20, 20, pdfWidth, pdfHeight);
-    pdf.save(`${folderName || "file_structure"}.pdf`);
-  };
 
   // --- Exclusion Preset Handlers ---
-  const exclusionPresetKeys = [
-    "includeGit",
-    "includeDSStore",
-    "includeLogFiles",
-    "includeNodeModules",
-    "includePackageLock",
-    "includeBuildFolders",
-    "includeDistFolders",
-    "includeCoverage",
-    "includeImgFiles",
-    "includePdfFiles",
-    "includeFavicon",
-  ];
-  const handleSavePreset = () => {
-    if (!presetName.trim()) return;
-    const preset = {};
-    exclusionPresetKeys.forEach((key) => {
-      preset[key] = eval(key);
-    });
-    localStorage.setItem(
-      `txtextract_exclusion_preset_${presetName.trim()}`,
-      JSON.stringify(preset)
-    );
-    updatePresetList();
-    setPresetName("");
-  };
-  const handleLoadPreset = (name) => {
-    const presetStr = localStorage.getItem(
-      `txtextract_exclusion_preset_${name}`
-    );
-    if (!presetStr) return;
-    const preset = JSON.parse(presetStr);
-    exclusionPresetKeys.forEach((key) => {
-      if (typeof preset[key] !== "undefined") {
-        eval(`set${key.charAt(0).toUpperCase() + key.slice(1)}(preset[key])`);
-      }
-    });
-  };
-  const updatePresetList = () => {
-    const keys = Object.keys(localStorage).filter((k) =>
-      k.startsWith("txtextract_exclusion_preset_")
-    );
-    setPresetList(
-      keys.map((k) => k.replace("txtextract_exclusion_preset_", ""))
-    );
-  };
-  useEffect(() => {
-    updatePresetList();
-  }, []);
+  // Removed preset functionality
 
   // --- Accessibility: Keyboard navigation for export/search controls ---
   useEffect(() => {
@@ -416,10 +338,6 @@ function FileExplorer() {
           searchInputRef.current,
           exportSelectRef.current,
           downloadBtnRef.current,
-          copyBtnRef.current,
-          pdfBtnRef.current,
-          savePresetBtnRef.current,
-          loadPresetBtnRef.current,
         ].filter(Boolean);
         const idx = focusables.indexOf(document.activeElement);
         if (e.shiftKey) {
@@ -1181,39 +1099,10 @@ function FileExplorer() {
   };
 
   // PDF export handler
-  const handleExportPdf = () => {
-    if (outputRef.current) {
-      const printWindow = window.open("", "", "width=900,height=700");
-      printWindow.document.write("<html><head><title>Export as PDF</title>");
-      printWindow.document.write(
-        "<style>body{font-family:monospace;padding:2em;}pre{white-space:pre-wrap;word-break:break-all;}</style>"
-      );
-      printWindow.document.write("</head><body >");
-      printWindow.document.write(
-        "<pre>" +
-          (tokenOptimizationEnabled ? optimizedFileStructure : fileStructure)
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;") +
-          "</pre>"
-      );
-      printWindow.document.write("</body></html>");
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-    }
-  };
+  // Removed PDF export functionality
 
   // Preset save/load handlers
-  const savePreset = () => {
-    localStorage.setItem(
-      "txtextract_exclusions",
-      JSON.stringify(customExclusions)
-    );
-  };
-  const loadPreset = () => {
-    const preset = localStorage.getItem("txtextract_exclusions");
-    if (preset) setCustomExclusions(JSON.parse(preset));
-  };
+  // Removed preset functionality
 
   // Function to build folder structure for custom exclusion UI
   // FIXED: Now respects global exclusion settings to significantly improve performance
@@ -2551,7 +2440,7 @@ function FileExplorer() {
             <div
               className="export-controls"
               role="region"
-              aria-label="Export and clipboard controls"
+              aria-label="Export controls"
             >
               <select
                 className="format-select"
@@ -2565,10 +2454,17 @@ function FileExplorer() {
                 <option value="md">Markdown (.md)</option>
                 <option value="html">HTML (.html)</option>
                 <option value="json">JSON (.json)</option>
-                <option value="pdf">PDF (.pdf)</option>
               </select>
               <button
-                className="download-button"
+                className="download-button primary-download"
+                onClick={handleExport}
+                aria-label="Download exported file"
+                title="Download the extracted structure as a file"
+              >
+                Download File
+              </button>
+              <button
+                className="download-button secondary"
                 onClick={handleGenerateScript}
                 disabled={generatingScript || loading || !selectedDirHandle}
                 title="Generate a PowerShell script to recreate this structure"
@@ -2577,81 +2473,6 @@ function FileExplorer() {
               >
                 {generatingScript ? "Generating..." : "Generate PS Script"}
               </button>
-              <button
-                className="download-button"
-                onClick={handleExport}
-                aria-label="Download exported file"
-                title="Download the extracted structure as a file"
-              >
-                Download File
-              </button>
-              <button
-                className="download-button"
-                onClick={() => {
-                  const textToCopy = tokenOptimizationEnabled
-                    ? optimizedFileStructure
-                    : fileStructure;
-                  if (!textToCopy) return;
-                  navigator.clipboard.writeText(textToCopy).then(() => {
-                    setCopySuccess(true);
-                    setTimeout(() => setCopySuccess(false), 1500);
-                  });
-                }}
-                disabled={loading || !(fileStructure || optimizedFileStructure)}
-                aria-label="Copy extracted results to clipboard"
-                title="Copy extracted results to clipboard"
-                ref={copyBtnRef}
-              >
-                {copySuccess ? "Copied!" : "Copy to Clipboard"}
-              </button>
-              <button
-                className="download-button"
-                onClick={exportAsPdf}
-                aria-label="Export as PDF"
-                title="Export the extracted structure as a PDF file"
-                ref={pdfBtnRef}
-              >
-                Export as PDF
-              </button>
-              {/* Exclusion Preset Controls */}
-              <input
-                type="text"
-                className="preset-input"
-                value={presetName}
-                onChange={(e) => setPresetName(e.target.value)}
-                placeholder="Preset name"
-                aria-label="Preset name"
-                title="Enter a name for the exclusion preset"
-                style={{ width: 120, marginLeft: 8 }}
-              />
-              <button
-                className="download-button"
-                onClick={handleSavePreset}
-                aria-label="Save exclusion preset"
-                title="Save current exclusion settings as a preset"
-                ref={savePresetBtnRef}
-                disabled={!presetName.trim()}
-              >
-                Save Preset
-              </button>
-              <select
-                className="preset-select"
-                onChange={(e) => handleLoadPreset(e.target.value)}
-                aria-label="Load exclusion preset"
-                title="Load a saved exclusion preset"
-                ref={loadPresetBtnRef}
-                style={{ width: 120, marginLeft: 8 }}
-                value=""
-              >
-                <option value="" disabled>
-                  Load Preset
-                </option>
-                {presetList.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
             </div>
           </div>
           <pre
