@@ -1621,3 +1621,59 @@ mark.current-match {
     grid-template-columns: 1fr;
   }
 }
+
+.extract-button {
+  background-color: var(--color-button-primary, #007bff);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin: 0 auto;
+  display: block;
+  transition: background 0.2s, color 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.extract-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.folder-tree-section {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.exclusion-controls {
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+  display: flex;
+  gap: 8px;
+}
+
+.file-explorer-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.select-folder-button {
+  background: var(--color-button-primary, #007bff);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 1.5rem;
+  transition: background 0.2s, color 0.2s;
+}
+
+.select-folder-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
