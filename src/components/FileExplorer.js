@@ -2496,3 +2496,5 @@ function FileExplorer() {
 
 // --- PropTypes for FileExplorer (for code quality) ---
 FileExplorer.propTypes = {};
+
+export default FileExplorer;
