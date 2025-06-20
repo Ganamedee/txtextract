@@ -2452,24 +2452,26 @@ function FileExplorer() {
                 <option value="html">HTML (.html)</option>
                 <option value="json">JSON (.json)</option>
               </select>
-              <button
-                className="download-button primary-download"
-                onClick={handleExport}
-                aria-label="Download exported file"
-                title="Download the extracted structure as a file"
-              >
-                Download File
-              </button>
-              <button
-                className="download-button secondary"
-                onClick={handleGenerateScript}
-                disabled={generatingScript || loading || !selectedDirHandle}
-                title="Generate a PowerShell script to recreate this structure"
-                aria-label="Generate PowerShell script"
-                ref={downloadBtnRef}
-              >
-                {generatingScript ? "Generating..." : "Generate PS Script"}
-              </button>
+              <div className="export-buttons-group">
+                <button
+                  className="download-button secondary"
+                  onClick={handleGenerateScript}
+                  disabled={generatingScript || loading || !selectedDirHandle}
+                  title="Generate a PowerShell script to recreate this structure"
+                  aria-label="Generate PowerShell script"
+                  ref={downloadBtnRef}
+                >
+                  {generatingScript ? "Generating..." : "Generate PS Script"}
+                </button>
+                <button
+                  className="download-button primary-download"
+                  onClick={handleExport}
+                  aria-label="Download exported file"
+                  title="Download the extracted structure as a file"
+                >
+                  Download File
+                </button>
+              </div>
             </div>
           </div>
           <pre

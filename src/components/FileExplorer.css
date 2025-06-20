@@ -832,17 +832,35 @@
   transition: color 0.3s ease;
 }
 
+.export-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.export-buttons-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .download-button {
   background: var(--color-button-primary, #007bff);
   color: #fff;
   border: none;
   border-radius: 6px;
-  padding: 10px 20px;
+  padding: 8px 16px;
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-right: 8px;
   margin-bottom: 8px;
 }
 
@@ -866,7 +884,6 @@
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
-  margin-right: 12px;
 }
 
 .download-button.primary-download:hover {
@@ -1043,7 +1060,20 @@ mark.current-match {
 .export-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.export-buttons-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .format-select {
