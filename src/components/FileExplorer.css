@@ -1231,15 +1231,29 @@ mark.current-match {
   background-color: rgba(255, 166, 0, 0.05);
 }
 
-.folder-tree {
+.folder-tree-wrapper {
   max-height: 400px;
+  overflow: hidden;
+  transition: max-height 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+}
+
+.folder-tree-wrapper.expanded {
+  max-height: 80vh;
+}
+
+.folder-tree {
+  flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 8px;
   padding: 1rem;
   background: rgba(255, 255, 255, 0.5);
   font-size: 1rem;
   line-height: 1.6;
+  min-height: 200px;
 }
 
 .folder-tree::-webkit-scrollbar {
@@ -1751,6 +1765,33 @@ mark.current-match {
   font-size: 1.2rem;
   font-weight: 600;
   color: var(--color-text-primary);
+}
+
+.folder-tree-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.expand-folder-tree-button {
+  background: var(--color-button-primary, #007bff);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.expand-folder-tree-button:hover {
+  background: var(--color-button-primary-hover, #0056b3);
+  transform: translateY(-1px);
 }
 
 .exclusion-controls {

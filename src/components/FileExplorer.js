@@ -279,6 +279,7 @@ function FileExplorer() {
   const [expandedFolders, setExpandedFolders] = useState([]);
   const [selectedDirHandle, setSelectedDirHandle] = useState(null);
   const [folderSearchTerm, setFolderSearchTerm] = useState("");
+  const [folderTreeExpanded, setFolderTreeExpanded] = useState(false);
 
   // Add these new state variables near the other state declarations
   const [maxFileSize, setMaxFileSize] = useState(Infinity); // Default to no limit
@@ -2161,15 +2162,35 @@ function FileExplorer() {
       {selectedDirHandle && (
         <>
           <div className="folder-tree-section">
-            <h3>Folder Structure</h3>
-            <FolderTree
-              structure={folderStructure}
-              exclusions={customExclusions}
-              onToggleExclusion={toggleCustomExclusion}
-              expandedFolders={expandedFolders}
-              onToggleFolder={toggleFolder}
-              searchTerm={folderSearchTerm}
-            />
+            <div className="folder-tree-header">
+              <h3>Folder Structure</h3>
+              <button
+                className="expand-folder-tree-button"
+                onClick={() => setFolderTreeExpanded(!folderTreeExpanded)}
+                title={folderTreeExpanded ? "Collapse viewer" : "Expand viewer"}
+              >
+                {folderTreeExpanded ? "▼ Collapse" : "▲ Expand"}
+              </button>
+            </div>
+            <div className="folder-search-container">
+              <input
+                type="text"
+                className="folder-search-input"
+                placeholder="Search files and folders..."
+                value={folderSearchTerm}
+                onChange={handleFolderSearch}
+              />
+            </div>
+            <div className={`folder-tree-wrapper ${folderTreeExpanded ? "expanded" : ""}`}>
+              <FolderTree
+                structure={folderStructure}
+                exclusions={customExclusions}
+                onToggleExclusion={toggleCustomExclusion}
+                expandedFolders={expandedFolders}
+                onToggleFolder={toggleFolder}
+                searchTerm={folderSearchTerm}
+              />
+            </div>
             <div className="exclusion-controls">
               <button onClick={selectAllItems}>Select All</button>
               <button onClick={deselectAllItems}>Deselect All</button>
