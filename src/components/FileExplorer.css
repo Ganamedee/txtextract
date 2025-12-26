@@ -1232,46 +1232,134 @@ mark.current-match {
 }
 
 .folder-tree-wrapper {
-  max-height: 400px;
-  overflow: hidden;
-  transition: max-height 0.3s ease-in-out;
+  height: 300px;
+  min-height: 150px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: height 0.3s ease-in-out;
   display: flex;
   flex-direction: column;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  resize: vertical;
 }
 
-.folder-tree-wrapper.expanded {
-  max-height: 80vh;
+/* Size variants for folder tree */
+.folder-tree-wrapper.size-small {
+  height: 200px;
+}
+
+.folder-tree-wrapper.size-medium {
+  height: 350px;
+}
+
+.folder-tree-wrapper.size-large {
+  height: 500px;
+}
+
+.folder-tree-wrapper.size-xlarge {
+  height: 70vh;
+  max-height: 800px;
+}
+
+/* Dark mode support for folder tree wrapper */
+[data-theme="dark"] .folder-tree-wrapper {
+  background: rgba(30, 30, 40, 0.5);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Scrollbar styling for folder tree wrapper */
+.folder-tree-wrapper::-webkit-scrollbar {
+  width: 10px;
+}
+
+.folder-tree-wrapper::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 5px;
+}
+
+.folder-tree-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.folder-tree-wrapper::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.4);
+  background-clip: padding-box;
+}
+
+[data-theme="dark"] .folder-tree-wrapper::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .folder-tree-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  background-clip: padding-box;
+}
+
+[data-theme="dark"] .folder-tree-wrapper::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+  background-clip: padding-box;
 }
 
 .folder-tree {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
+  overflow: visible;
   padding: 1rem;
-  background: rgba(255, 255, 255, 0.5);
   font-size: 1rem;
   line-height: 1.6;
-  min-height: 200px;
+  min-height: max-content;
 }
 
-.folder-tree::-webkit-scrollbar {
-  width: 8px;
+/* Size selector container */
+.folder-tree-size-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
-.folder-tree::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 4px;
+.folder-tree-size-selector label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-right: 8px;
 }
 
-.folder-tree::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
+.size-option-btn {
+  background: rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--color-text-primary);
 }
 
-.folder-tree::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
+.size-option-btn:hover {
+  background: rgba(0, 123, 255, 0.1);
+  border-color: rgba(0, 123, 255, 0.3);
+}
+
+.size-option-btn.active {
+  background: var(--color-button-primary);
+  color: #fff;
+  border-color: var(--color-button-primary);
+}
+
+[data-theme="dark"] .size-option-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .size-option-btn:hover {
+  background: rgba(0, 123, 255, 0.2);
+  border-color: rgba(0, 123, 255, 0.4);
 }
 
 .folder-tree-empty {
@@ -1776,6 +1864,13 @@ mark.current-match {
   gap: 1rem;
 }
 
+.folder-tree-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .expand-folder-tree-button {
   background: var(--color-button-primary, #007bff);
   color: #fff;
@@ -1792,6 +1887,21 @@ mark.current-match {
 .expand-folder-tree-button:hover {
   background: var(--color-button-primary-hover, #0056b3);
   transform: translateY(-1px);
+}
+
+/* Resize hint */
+.resize-hint {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.resize-hint svg {
+  width: 14px;
+  height: 14px;
 }
 
 .exclusion-controls {

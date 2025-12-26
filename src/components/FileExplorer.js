@@ -168,7 +168,7 @@ const FolderTree = ({
         // Highlight text if it matches search
         const highlightedName =
           searchTerm &&
-          name.toLowerCase().includes(searchTerm.toLowerCase()) ? (
+            name.toLowerCase().includes(searchTerm.toLowerCase()) ? (
             <span className="highlight-text">{name}</span>
           ) : (
             name
@@ -177,24 +177,21 @@ const FolderTree = ({
         return (
           <div
             key={currentPath}
-            className={`tree-node ${
-              searchTerm &&
+            className={`tree-node ${searchTerm &&
               name.toLowerCase().includes(searchTerm.toLowerCase())
-                ? "search-match"
-                : ""
-            }`}
+              ? "search-match"
+              : ""
+              }`}
           >
             <div
-              className={`folder-item ${
-                level > 0 ? "folder-item-indent" : ""
-              } ${isExcluded ? "item-excluded" : ""}`}
+              className={`folder-item ${level > 0 ? "folder-item-indent" : ""
+                } ${isExcluded ? "item-excluded" : ""}`}
               style={{ paddingLeft: `${level * 0.75}rem` }}
             >
               {isFolder && (
                 <span
-                  className={`folder-item-toggle ${
-                    isExpanded ? "expanded" : ""
-                  }`}
+                  className={`folder-item-toggle ${isExpanded ? "expanded" : ""
+                    }`}
                   onClick={() => onToggleFolder(currentPath)}
                 >
                   <ChevronRight />
@@ -216,9 +213,8 @@ const FolderTree = ({
             </div>
             {isFolder && item.children && (
               <div
-                className={`folder-item-children ${
-                  isExpanded ? "expanded" : "collapsed"
-                }`}
+                className={`folder-item-children ${isExpanded ? "expanded" : "collapsed"
+                  }`}
               >
                 {isExpanded &&
                   renderTree(item.children, currentPath, level + 1)}
@@ -279,7 +275,7 @@ function FileExplorer() {
   const [expandedFolders, setExpandedFolders] = useState([]);
   const [selectedDirHandle, setSelectedDirHandle] = useState(null);
   const [folderSearchTerm, setFolderSearchTerm] = useState("");
-  const [folderTreeExpanded, setFolderTreeExpanded] = useState(false);
+  const [folderTreeSize, setFolderTreeSize] = useState("medium"); // small, medium, large, xlarge
 
   // Add these new state variables near the other state declarations
   const [maxFileSize, setMaxFileSize] = useState(Infinity); // Default to no limit
@@ -1090,8 +1086,7 @@ function FileExplorer() {
     } catch (error) {
       console.error("Error generating PowerShell script:", error);
       setError(
-        `Failed to generate PowerShell script: ${
-          error.message || "Unknown error"
+        `Failed to generate PowerShell script: ${error.message || "Unknown error"
         }`
       );
     } finally {
@@ -1966,29 +1961,27 @@ function FileExplorer() {
         <div class="stats-grid">
           <div class="stat-item"><span class="stat-label">Total Files:</span><span class="stat-value">${fileStats.totalFiles.toLocaleString()}</span></div>
           <div class="stat-item"><span class="stat-label">Total Size:</span><span class="stat-value">${(
-            fileStats.totalSize /
-            (1024 * 1024)
-          ).toFixed(2)} MB</span></div>
+          fileStats.totalSize /
+          (1024 * 1024)
+        ).toFixed(2)} MB</span></div>
           <div class="stat-item"><span class="stat-label">Average File Size:</span><span class="stat-value">${(
-            fileStats.averageFileSize / 1024
-          ).toFixed(2)} KB</span></div>
+          fileStats.averageFileSize / 1024
+        ).toFixed(2)} KB</span></div>
           <div class="stat-item"><span class="stat-label">Total Lines:</span><span class="stat-value">${fileStats.totalLines.toLocaleString()}</span></div>
           <div class="stat-item"><span class="stat-label">Total Characters:</span><span class="stat-value">${fileStats.totalCharacters.toLocaleString()}</span></div>
           <div class="stat-item"><span class="stat-label">Total Words:</span><span class="stat-value">${fileStats.totalWords.toLocaleString()}</span></div>
-          <div class="stat-item"><span class="stat-label">Largest File:</span><span class="stat-value">${
-            fileStats.largestFile.name
-          } (${(fileStats.largestFile.size / 1024).toFixed(2)} KB)</span></div>
-          ${
-            tokenOptimizationEnabled
-              ? `
+          <div class="stat-item"><span class="stat-label">Largest File:</span><span class="stat-value">${fileStats.largestFile.name
+        } (${(fileStats.largestFile.size / 1024).toFixed(2)} KB)</span></div>
+          ${tokenOptimizationEnabled
+          ? `
             <div class="stat-item token-stats-item"><span class="stat-label">Estimated Tokens:</span><span class="stat-value">${fileStats.totalTokens.toLocaleString()}</span></div>
             <div class="stat-item token-stats-item"><span class="stat-label">Optimized Tokens:</span><span class="stat-value">${fileStats.totalTokensOptimized.toLocaleString()}</span></div>
             <div class="stat-item token-stats-item"><span class="stat-label">Token Reduction:</span><span class="stat-value">${fileStats.tokenReduction.toFixed(
-              1
-            )}%</span></div>
+            1
+          )}%</span></div>
           `
-              : ""
-          }
+          : ""
+        }
         </div>`;
     }
 
@@ -2009,9 +2002,8 @@ function FileExplorer() {
 
       // Add file content with syntax highlighting
       const language = getLanguageFromExtension(filePath.split(".").pop());
-      htmlContent += `<pre><code class="${language}">${
-        hljs.highlight(content, { language }).value
-      }</code></pre>`;
+      htmlContent += `<pre><code class="${language}">${hljs.highlight(content, { language }).value
+        }</code></pre>`;
     }
 
     htmlContent += `
@@ -2164,13 +2156,45 @@ function FileExplorer() {
           <div className="folder-tree-section">
             <div className="folder-tree-header">
               <h3>Folder Structure</h3>
-              <button
-                className="expand-folder-tree-button"
-                onClick={() => setFolderTreeExpanded(!folderTreeExpanded)}
-                title={folderTreeExpanded ? "Collapse viewer" : "Expand viewer"}
-              >
-                {folderTreeExpanded ? "▼ Collapse" : "▲ Expand"}
-              </button>
+              <div className="folder-tree-controls">
+                <div className="folder-tree-size-selector">
+                  <label>Size:</label>
+                  <button
+                    className={`size-option-btn ${folderTreeSize === "small" ? "active" : ""}`}
+                    onClick={() => setFolderTreeSize("small")}
+                    title="Small (200px)"
+                  >
+                    S
+                  </button>
+                  <button
+                    className={`size-option-btn ${folderTreeSize === "medium" ? "active" : ""}`}
+                    onClick={() => setFolderTreeSize("medium")}
+                    title="Medium (350px)"
+                  >
+                    M
+                  </button>
+                  <button
+                    className={`size-option-btn ${folderTreeSize === "large" ? "active" : ""}`}
+                    onClick={() => setFolderTreeSize("large")}
+                    title="Large (500px)"
+                  >
+                    L
+                  </button>
+                  <button
+                    className={`size-option-btn ${folderTreeSize === "xlarge" ? "active" : ""}`}
+                    onClick={() => setFolderTreeSize("xlarge")}
+                    title="Extra Large (70vh)"
+                  >
+                    XL
+                  </button>
+                </div>
+                <span className="resize-hint">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                  </svg>
+                  Drag bottom edge to resize
+                </span>
+              </div>
             </div>
             <div className="folder-search-container">
               <input
@@ -2181,7 +2205,7 @@ function FileExplorer() {
                 onChange={handleFolderSearch}
               />
             </div>
-            <div className={`folder-tree-wrapper ${folderTreeExpanded ? "expanded" : ""}`}>
+            <div className={`folder-tree-wrapper size-${folderTreeSize}`}>
               <FolderTree
                 structure={folderStructure}
                 exclusions={customExclusions}
@@ -2293,9 +2317,8 @@ function FileExplorer() {
       {fileStructure && (
         <div className="stats-toggle-container">
           <button
-            className={`stats-toggle-button ${showStatistics ? "active" : ""} ${
-              statsIconAnimating ? "icon-animating" : ""
-            }`}
+            className={`stats-toggle-button ${showStatistics ? "active" : ""} ${statsIconAnimating ? "icon-animating" : ""
+              }`}
             onClick={toggleStatistics}
             ref={statsIconRef}
             aria-label="Toggle statistics panel"
@@ -2309,9 +2332,8 @@ function FileExplorer() {
       {/* Statistics Content */}
       {fileStructure && (
         <div
-          className={`stats-container ${showStatistics ? "show" : ""} ${
-            hidingStatistics ? "hiding" : ""
-          }`}
+          className={`stats-container ${showStatistics ? "show" : ""} ${hidingStatistics ? "hiding" : ""
+            }`}
           ref={statsContainerRef}
         >
           <div className="stats-content">
@@ -2504,16 +2526,16 @@ function FileExplorer() {
               __html:
                 fileStructure && searchQuery && searchResults.length > 0
                   ? highlightSearchResults(
-                      tokenOptimizationEnabled
-                        ? optimizedFileStructure
-                        : fileStructure,
-                      searchQuery,
-                      searchResults,
-                      currentResultIndex
-                    )
+                    tokenOptimizationEnabled
+                      ? optimizedFileStructure
+                      : fileStructure,
+                    searchQuery,
+                    searchResults,
+                    currentResultIndex
+                  )
                   : tokenOptimizationEnabled
-                  ? optimizedFileStructure
-                  : fileStructure,
+                    ? optimizedFileStructure
+                    : fileStructure,
             }}
           ></pre>
         </div>
